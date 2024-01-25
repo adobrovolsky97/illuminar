@@ -3,7 +3,7 @@
 Illuminar is a Laravel package that provides a set of watchers to track various activities in your application. It is
 designed to help developers monitor and debug their applications more effectively.
 
-<img width="1237" alt="299806977-260b3bd6-db1d-469c-968f-2c68dd2a82af" src="https://github.com/adobrovolsky97/illuminar/assets/136475533/5772cff4-2375-42f6-b985-0d073bdb725e">
+<img width="1237" alt="299806977-260b3bd6-db1d-469c-968f-2c68dd2a82af" src="https://github.com/adobrovolsky97/illuminar/assets/136475533/119599fe-8fec-4657-995e-0b54684f56a4">
 
 ## Features
 
