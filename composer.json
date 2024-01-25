@@ -1,0 +1,55 @@
+{
+    "name": "adobrovolsky97/illuminar",
+    "description": "Debug tool for Laravel Framework",
+    "keywords": [
+        "laravel",
+        "debugger",
+        "profiler",
+        "debug"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Andrew Dobrovolsky",
+            "email": "adobrovolsky97@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Adobrovolsky97\\Illuminar\\": "src/"
+        },
+        "files": [
+            "src/helpers.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Adobrovolsky97\\Illuminar\\Tests\\": "tests"
+        }
+    },
+    "require": {
+        "php": ">=7.4",
+        "ext-json": "*",
+        "laravel/framework": "^8.37|^9.0|^10.0",
+        "symfony/var-dumper": "^5.4|^6.0",
+        "guzzlehttp/guzzle": "^7.8"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5|^10.0",
+        "orchestra/testbench": "^8.21"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Adobrovolsky97\\Illuminar\\ServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "@php artisan vendor:publish --tag=illuminar --ansi --force"
+        ]
+    }
+}
