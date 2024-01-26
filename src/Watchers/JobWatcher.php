@@ -56,11 +56,11 @@ class JobWatcher extends Watcher
 
                 DataCollector::addToBatch($jobPayload);
 
-                if ($event instanceof JobQueued) {
+                if ($event instanceof JobQueued || config('queue.default') === 'sync') {
                     return;
                 }
 
-                // Append data to the batch b/c job needs to be stored in the same file after it's processed
+                // Append data to the batch should be called in case of queued processing
                 DataCollector::appendData();
             }
         );
