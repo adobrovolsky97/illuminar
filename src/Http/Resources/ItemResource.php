@@ -29,7 +29,7 @@ class ItemResource extends JsonResource
      * @return array
      * @throws Exception
      */
-    public function toArray(Request $request): array
+    public function toArray($request): array
     {
         $argumentFormatter = app(PrimitiveArgumentFormatter::class);
         $dumper = app(HtmlDumper::class);

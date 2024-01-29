@@ -1,6 +1,6 @@
 <?php
 return [
-    'enabled' => env('ILLUMINAR_ENABLED', true),
+    'enabled' => env('ILLUMINAR_ENABLED', false),
     'storage' => [
         'driver'        => 'file',
         'path'          => storage_path('illuminar'),
