@@ -5,6 +5,7 @@ namespace Adobrovolsky97\Illuminar;
 use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
 use Adobrovolsky97\Illuminar\Payloads\Payload;
 use Exception;
+use Throwable;
 
 /**
  * Illuminar data collector
@@ -58,8 +59,6 @@ final class DataCollector
 
     /**
      * Store data to a configured storage
-     *
-     * @throws Exception
      */
     public static function storeData(): void
     {
@@ -67,11 +66,14 @@ final class DataCollector
             return;
         }
 
-        self::prepareDataForStoring();
+        try {
+            self::prepareDataForStoring();
 
-        self::resetKeys();
-        app(StorageDriverFactory::getDriverForConfig())->save(self::$batch);
-        self::reset();
+            self::resetKeys();
+            app(StorageDriverFactory::getDriverForConfig())->save(self::$batch);
+            self::reset();
+        } catch (Throwable $e) {
+        }
     }
 
     /**

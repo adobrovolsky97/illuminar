@@ -146,7 +146,6 @@ class DumpPayload extends Payload
      * Die and store data
      *
      * @return void
-     * @throws Exception
      */
     public function die(): void
     {

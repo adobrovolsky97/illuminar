@@ -85,11 +85,9 @@ export default {
                         return;
                     }
 
-                    const dumps = container.querySelectorAll('.sf-dump');
-                    if (dumps.length > 0) {
-                        const id = dumps[0].id;
-                        Sfdump(id);
-                    }
+                    container.querySelectorAll('.sf-dump').forEach((dump) => {
+                        Sfdump(dump.id);
+                    });
                 });
             }
         }
