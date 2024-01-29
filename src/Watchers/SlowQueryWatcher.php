@@ -5,8 +5,8 @@ namespace Adobrovolsky97\Illuminar\Watchers;
 use Adobrovolsky97\Illuminar\DataCollector;
 use Adobrovolsky97\Illuminar\Events\SlowQueryFound;
 use Adobrovolsky97\Illuminar\Payloads\QueryPayload;
-use Event;
 use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\Event;
 
 /**
  * Tracking only slow queries

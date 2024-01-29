@@ -18,7 +18,7 @@ use Adobrovolsky97\Illuminar\Watchers\SlowQueryWatcher;
 use Adobrovolsky97\Illuminar\Watchers\Watcher;
 use Exception;
 use Illuminate\Mail\Mailable;
-use Str;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**

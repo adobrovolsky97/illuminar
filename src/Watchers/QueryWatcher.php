@@ -5,8 +5,8 @@ namespace Adobrovolsky97\Illuminar\Watchers;
 use Adobrovolsky97\Illuminar\DataCollector;
 use Adobrovolsky97\Illuminar\Payloads\QueryPayload;
 use Adobrovolsky97\Illuminar\Traits\HasBacktrace;
-use Event;
 use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 
 /**

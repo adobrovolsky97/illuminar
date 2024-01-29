@@ -5,8 +5,8 @@ namespace Adobrovolsky97\Illuminar\Watchers;
 use Adobrovolsky97\Illuminar\DataCollector;
 use Adobrovolsky97\Illuminar\Events\SlowQueryFound;
 use Adobrovolsky97\Illuminar\Payloads\EventPayload;
-use Event;
-use Str;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Str;
 
 /**
  * Class EventWatcher

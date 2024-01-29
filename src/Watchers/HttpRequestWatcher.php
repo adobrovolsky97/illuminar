@@ -4,8 +4,8 @@ namespace Adobrovolsky97\Illuminar\Watchers;
 
 use Adobrovolsky97\Illuminar\DataCollector;
 use Adobrovolsky97\Illuminar\Payloads\HttpRequestPayload;
-use Event;
 use Illuminate\Http\Client\Events\ResponseReceived;
+use Illuminate\Support\Facades\Event;
 
 /**
  * Class HttpClientWatcher

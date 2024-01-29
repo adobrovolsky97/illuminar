@@ -4,12 +4,12 @@ namespace Adobrovolsky97\Illuminar\Watchers;
 
 use Adobrovolsky97\Illuminar\DataCollector;
 use Adobrovolsky97\Illuminar\Payloads\JobPayload;
-use Event;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Queue\Events\JobQueued;
 use Illuminate\Queue\Queue;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 
 /**

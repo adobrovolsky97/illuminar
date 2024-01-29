@@ -5,6 +5,9 @@ namespace Adobrovolsky97\Illuminar\Watchers;
 use Adobrovolsky97\Illuminar\DataCollector;
 use Adobrovolsky97\Illuminar\Payloads\DumpPayload;
 
+/**
+ * Class DumpWatcher
+ */
 class DumpWatcher extends Watcher
 {
     /**

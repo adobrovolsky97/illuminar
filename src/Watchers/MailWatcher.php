@@ -4,10 +4,10 @@ namespace Adobrovolsky97\Illuminar\Watchers;
 
 use Adobrovolsky97\Illuminar\DataCollector;
 use Adobrovolsky97\Illuminar\Payloads\MailPayload;
-use Event;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Mail\Mailable;
+use Illuminate\Support\Facades\Event;
 
 /**
  * Class MailWatcher

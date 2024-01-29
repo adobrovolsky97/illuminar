@@ -4,8 +4,8 @@ namespace Adobrovolsky97\Illuminar\Watchers;
 
 use Adobrovolsky97\Illuminar\DataCollector;
 use Adobrovolsky97\Illuminar\Payloads\ExceptionPayload;
-use Event;
 use Illuminate\Log\Events\MessageLogged;
+use Illuminate\Support\Facades\Event;
 use Throwable;
 
 /**
