@@ -2,7 +2,7 @@
 
 namespace Adobrovolsky97\Illuminar\Tests;
 
-use Adobrovolsky97\Illuminar\DataCollector;
+use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 
@@ -17,8 +17,7 @@ abstract class TestCase extends \Orchestra\Testbench\TestCase
     public function setUp(): void
     {
         parent::setUp();
-
-        DataCollector::fake();
+        StorageDriverFactory::fake();
     }
 
     /**
@@ -27,8 +26,7 @@ abstract class TestCase extends \Orchestra\Testbench\TestCase
     protected function tearDown(): void
     {
         parent::tearDown();
-
-        DataCollector::reset();
+        StorageDriverFactory::getDriverForConfig()->clear();
     }
 
     /**

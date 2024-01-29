@@ -2,7 +2,6 @@
 
 namespace Adobrovolsky97\Illuminar\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
 use Adobrovolsky97\Illuminar\Payloads\JobPayload;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
@@ -54,14 +53,7 @@ class JobWatcher extends Watcher
                     return;
                 }
 
-                DataCollector::addToBatch($jobPayload);
-
-                if ($event instanceof JobQueued || config('queue.default') === 'sync') {
-                    return;
-                }
-
-                // Append data to the batch should be called in case of queued processing
-                DataCollector::appendData();
+                $this->storageDriver->saveEntry($jobPayload->toArray());
             }
         );
     }

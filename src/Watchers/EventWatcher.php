@@ -2,7 +2,6 @@
 
 namespace Adobrovolsky97\Illuminar\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
 use Adobrovolsky97\Illuminar\Events\SlowQueryFound;
 use Adobrovolsky97\Illuminar\Payloads\EventPayload;
 use Illuminate\Support\Facades\Event;
@@ -35,7 +34,7 @@ class EventWatcher extends Watcher
                 return;
             }
 
-            DataCollector::addToBatch(new EventPayload($eventName, $arguments));
+            $this->storageDriver->saveEntry((new EventPayload($eventName, $arguments))->toArray());
         });
     }
 

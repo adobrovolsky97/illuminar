@@ -2,7 +2,7 @@
 
 namespace Adobrovolsky97\Illuminar\Tests\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
+use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
 use Adobrovolsky97\Illuminar\Tests\TestCase;
 use Adobrovolsky97\Illuminar\Watchers\ExceptionWatcher;
 use Exception;
@@ -32,10 +32,9 @@ class ExceptionWatcherTest extends TestCase
         illuminar()->stopTrackingExceptions();
         $handler->report($exception);
 
-        $batch = DataCollector::getBatch();
-        $this->assertCount(1, $batch);
+        $data = StorageDriverFactory::getDriverForConfig()->getData();
 
-        $entry = reset($batch);
-        $this->assertEquals(ExceptionWatcher::getName(), $entry['type']);
+        $this->assertNotEmpty($data);
+        $this->assertEquals(ExceptionWatcher::getName(), $data[0]['type']);
     }
 }

@@ -8,20 +8,19 @@ namespace Adobrovolsky97\Illuminar\StorageDrivers;
 interface StorageDriverInterface
 {
     /**
-     * Save data to storage
+     * Clear storage
      *
-     * @param array $data
      * @return void
      */
-    public function save(array $data): void;
+    public function clear(): void;
 
     /**
-     * Append data to storage
+     * Save entry
      *
      * @param array $data
      * @return void
      */
-    public function append(array $data): void;
+    public function saveEntry(array $data): void;
 
     /**
      * Get last saved data

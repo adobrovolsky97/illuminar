@@ -2,7 +2,6 @@
 
 namespace Adobrovolsky97\Illuminar\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
 use Adobrovolsky97\Illuminar\Payloads\ExceptionPayload;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Event;
@@ -32,8 +31,8 @@ class ExceptionWatcher extends Watcher
                 || !$event->context['exception'] instanceof Throwable) {
                 return;
             }
-            DataCollector::addToBatch(new ExceptionPayload($event));
-            DataCollector::storeData();
+
+            $this->storageDriver->saveEntry((new ExceptionPayload($event))->toArray());
         });
     }
 }

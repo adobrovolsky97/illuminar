@@ -2,12 +2,13 @@
 
 namespace Adobrovolsky97\Illuminar\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
+use Adobrovolsky97\Illuminar\Payloads\MailablePreviewPayload;
 use Adobrovolsky97\Illuminar\Payloads\MailPayload;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\Event;
+use Throwable;
 
 /**
  * Class MailWatcher
@@ -44,7 +45,22 @@ class MailWatcher extends Watcher
                 return;
             }
 
-            DataCollector::addToBatch(new MailPayload($event));
+            $this->storageDriver->saveEntry((new MailPayload($event))->toArray());
         });
+    }
+
+    /**
+     * Show mailable content
+     *
+     * @param Mailable $mailable
+     * @return void
+     */
+    public function mailable(Mailable $mailable): void
+    {
+        try {
+            $this->storageDriver->saveEntry((new MailablePreviewPayload($mailable))->toArray());
+        }catch (Throwable $exception){
+
+        }
     }
 }

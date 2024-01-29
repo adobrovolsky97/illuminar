@@ -2,7 +2,7 @@
 
 namespace Adobrovolsky97\Illuminar\Tests\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
+use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
 use Adobrovolsky97\Illuminar\Tests\TestCase;
 use Adobrovolsky97\Illuminar\Watchers\HttpRequestWatcher;
 use GuzzleHttp\Client;
@@ -55,10 +55,9 @@ class HttpRequestWatcherTest extends TestCase
 
         Http::withHeaders(['Accept-Language' => 'nl_BE'])->get('https://test.com/foo/bar');
 
-        $batch = DataCollector::getBatch();
-        $this->assertCount(1, $batch);
+        $data = StorageDriverFactory::getDriverForConfig()->getData();
 
-        $entry = reset($batch);
-        $this->assertEquals(HttpRequestWatcher::getName(), $entry['type']);
+        $this->assertNotEmpty($data);
+        $this->assertEquals(HttpRequestWatcher::getName(), $data[0]['type']);
     }
 }

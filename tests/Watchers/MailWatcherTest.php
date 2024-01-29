@@ -2,7 +2,7 @@
 
 namespace Adobrovolsky97\Illuminar\Tests\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
+use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
 use Adobrovolsky97\Illuminar\Tests\Stubs\TestMail;
 use Adobrovolsky97\Illuminar\Tests\TestCase;
 use Adobrovolsky97\Illuminar\Watchers\MailWatcher;
@@ -51,12 +51,11 @@ class MailWatcherTest extends TestCase
                 ->subject('Test email!');
         });
 
-        $batch = DataCollector::getBatch();
-        $this->assertCount(1, $batch);
+        $data = StorageDriverFactory::getDriverForConfig()->getData();
 
-        $entry = reset($batch);
-        $this->assertEquals(MailWatcher::getName(), $entry['type']);
-        $this->assertNull($entry['mailable_class']);
+        $this->assertNotEmpty($data);
+        $this->assertEquals(MailWatcher::getName(), $data[0]['type']);
+        $this->assertNull($data[0]['mailable_class']);
     }
 
     /**
@@ -68,11 +67,10 @@ class MailWatcherTest extends TestCase
 
         Mail::to(['to@illuminar.com'])->send(new TestMail(['key' => 'value']));
 
-        $batch = DataCollector::getBatch();
-        $this->assertCount(1, $batch);
+        $data = StorageDriverFactory::getDriverForConfig()->getData();
+        $this->assertCount(1, $data);
 
-        $entry = reset($batch);
-        $this->assertEquals(MailWatcher::getName(), $entry['type']);
-        $this->assertEquals(TestMail::class, $entry['mailable_class']);
+        $this->assertEquals(MailWatcher::getName(), $data[0]['type']);
+        $this->assertEquals(TestMail::class, $data[0]['mailable_class']);
     }
 }

@@ -50,16 +50,6 @@ abstract class Payload
     }
 
     /**
-     * Check if object is mutable (dump watcher could be mutable)
-     *
-     * @return bool
-     */
-    public function isMutable(): bool
-    {
-        return false;
-    }
-
-    /**
      * Generate unique identifier
      *
      * @return string

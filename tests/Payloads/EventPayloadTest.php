@@ -4,7 +4,6 @@ namespace Adobrovolsky97\Illuminar\Tests\Payloads;
 
 use Adobrovolsky97\Illuminar\Payloads\EventPayload;
 use Adobrovolsky97\Illuminar\Watchers\EventWatcher;
-use Laravel\SerializableClosure\Exceptions\PhpVersionNotSupportedException;
 use Adobrovolsky97\Illuminar\Tests\TestCase;
 
 /**
@@ -16,7 +15,6 @@ class EventPayloadTest extends TestCase
      * Test event payload to array
      *
      * @return void
-     * @throws PhpVersionNotSupportedException
      */
     public function testToArray(): void
     {

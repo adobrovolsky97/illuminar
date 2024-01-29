@@ -5,7 +5,6 @@ namespace Adobrovolsky97\Illuminar\Tests\Payloads;
 use Adobrovolsky97\Illuminar\Payloads\ExceptionPayload;
 use Exception;
 use Illuminate\Log\Events\MessageLogged;
-use Laravel\SerializableClosure\Exceptions\PhpVersionNotSupportedException;
 use Adobrovolsky97\Illuminar\Tests\TestCase;
 
 /**
@@ -15,7 +14,6 @@ class ExceptionPayloadTest extends TestCase
 {
     /**
      * @return void
-     * @throws PhpVersionNotSupportedException
      */
     public function testToArray(): void
     {

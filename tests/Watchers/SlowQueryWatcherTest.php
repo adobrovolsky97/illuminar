@@ -2,8 +2,8 @@
 
 namespace Adobrovolsky97\Illuminar\Tests\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
 use Adobrovolsky97\Illuminar\Events\SlowQueryFound;
+use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
 use Adobrovolsky97\Illuminar\Tests\Stubs\TestUserModel;
 use Adobrovolsky97\Illuminar\Watchers\QueryWatcher;
 use Illuminate\Support\Collection;
@@ -42,11 +42,10 @@ class SlowQueryWatcherTest extends QueryWatcherTest
 
         Event::assertDispatched(SlowQueryFound::class);
 
-        $batch = DataCollector::getBatch();
-        $this->assertCount(1, $batch);
+        $data = StorageDriverFactory::getDriverForConfig()->getData();
+        $this->assertCount(1, $data);
 
-        $entry = reset($batch);
-        $this->assertEquals(QueryWatcher::getName(), $entry['type']);
-        $this->assertTrue($entry['is_slow']);
+        $this->assertEquals(QueryWatcher::getName(), $data[0]['type']);
+        $this->assertTrue($data[0]['is_slow']);
     }
 }

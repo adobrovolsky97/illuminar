@@ -2,7 +2,6 @@
 
 namespace Adobrovolsky97\Illuminar\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
 use Adobrovolsky97\Illuminar\Payloads\CachePayload;
 use Illuminate\Cache\Events\CacheHit;
 use Illuminate\Cache\Events\CacheMissed;
@@ -38,7 +37,7 @@ class CacheWatcher extends Watcher
                 return;
             }
 
-            DataCollector::addToBatch(new CachePayload($event));
+            $this->storageDriver->saveEntry((new CachePayload($event))->toArray());
         });
     }
 }

@@ -2,7 +2,7 @@
 
 namespace Adobrovolsky97\Illuminar\Tests\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
+use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
 use Adobrovolsky97\Illuminar\Tests\Stubs\FailedTestJob;
 use Adobrovolsky97\Illuminar\Tests\Stubs\TestJob;
 use Adobrovolsky97\Illuminar\Tests\TestCase;
@@ -48,12 +48,11 @@ class JobWatcherTest extends TestCase
 
         $this->app->get(Dispatcher::class)->dispatch(new TestJob(['key' => 'value']));
 
-        $batch = DataCollector::getBatch();
-        $this->assertCount(1, $batch);
+        $data = StorageDriverFactory::getDriverForConfig()->getData();
 
-        $entry = reset($batch);
-        $this->assertEquals(JobWatcher::getName(), $entry['type']);
-        $this->assertEquals('queued', $entry['status']);
+        $this->assertNotEmpty($data);
+        $this->assertEquals(JobWatcher::getName(), $data[0]['type']);
+        $this->assertEquals('queued', $data[0]['status']);
 
         $this->artisan('queue:work', [
             'connection' => 'database',
@@ -61,11 +60,10 @@ class JobWatcherTest extends TestCase
             '--queue'    => 'test-queue',
         ])->run();
 
-        $batch = DataCollector::getBatch();
-        $this->assertCount(1, $batch);
+        $data = StorageDriverFactory::getDriverForConfig()->getData();
+        $this->assertCount(1, $data);
 
-        $entry = reset($batch);
-        $this->assertEquals('processed', $entry['status']);
+        $this->assertEquals('processed', $data[0]['status']);
     }
 
     /**
@@ -85,13 +83,12 @@ class JobWatcherTest extends TestCase
             '--queue'    => 'test-queue',
         ])->run();
 
-        $batch = DataCollector::getBatch();
-        $this->assertCount(1, $batch);
+        $data = StorageDriverFactory::getDriverForConfig()->getData();
+        $this->assertCount(1, $data);
 
-        $entry = reset($batch);
-        $this->assertEquals(JobWatcher::getName(), $entry['type']);
-        $this->assertEquals('failed', $entry['status']);
-        $this->assertNotNull($entry['exception']);
+        $this->assertEquals(JobWatcher::getName(), $data[0]['type']);
+        $this->assertEquals('failed', $data[0]['status']);
+        $this->assertNotNull($data[0]['exception']);
     }
 
     /**

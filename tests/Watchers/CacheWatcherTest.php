@@ -2,8 +2,9 @@
 
 namespace Adobrovolsky97\Illuminar\Tests\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
+use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
 use Adobrovolsky97\Illuminar\Tests\TestCase;
+use Adobrovolsky97\Illuminar\Watchers\CacheWatcher;
 use Illuminate\Cache\Events\CacheHit;
 use Illuminate\Cache\Events\CacheMissed;
 use Illuminate\Cache\Events\KeyForgotten;
@@ -37,11 +38,10 @@ class CacheWatcherTest extends TestCase
             illuminar()->stopTrackingCaches();
             Event::dispatch($event); // this one should not be tracked
 
-            $batch = DataCollector::getBatch();
-            $this->assertNotEmpty($batch);
+            $data = StorageDriverFactory::getDriverForConfig()->getData();
 
-            $entry = reset($batch);
-            $this->assertEquals('cache', $entry['type']);
+            $this->assertNotEmpty($data);
+            $this->assertEquals(CacheWatcher::getName(), $data[0]['type']);
         }
     }
 }

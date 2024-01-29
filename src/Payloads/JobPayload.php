@@ -9,7 +9,6 @@ use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Queue\Events\JobQueued;
-use Laravel\SerializableClosure\Exceptions\PhpVersionNotSupportedException;
 use Throwable;
 
 /**
@@ -65,7 +64,6 @@ class JobPayload extends Payload
 
     /**
      * @return array
-     * @throws PhpVersionNotSupportedException
      */
     public function toArray(): array
     {

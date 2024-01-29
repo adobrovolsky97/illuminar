@@ -8,7 +8,6 @@ use Illuminate\Cache\Events\CacheHit;
 use Illuminate\Cache\Events\CacheMissed;
 use Illuminate\Cache\Events\KeyForgotten;
 use Illuminate\Cache\Events\KeyWritten;
-use Laravel\SerializableClosure\Exceptions\PhpVersionNotSupportedException;
 
 /**
  * Class CachePayload
@@ -34,7 +33,6 @@ class CachePayload extends Payload
 
     /**
      * @return array
-     * @throws PhpVersionNotSupportedException
      */
     public function toArray(): array
     {

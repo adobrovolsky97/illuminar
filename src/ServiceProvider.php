@@ -2,6 +2,7 @@
 
 namespace Adobrovolsky97\Illuminar;
 
+use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
 use Adobrovolsky97\Illuminar\Payloads\QueryMacroPayload;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -65,12 +66,12 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
     private function registerMacros(): void
     {
         EloquentBuilder::macro('illuminar', function () {
-            DataCollector::addToBatch(new QueryMacroPayload($this));
+            StorageDriverFactory::getDriverForConfig()->saveEntry((new QueryMacroPayload($this))->toArray());
             return $this;
         });
 
         QueryBuilder::macro('illuminar', function () {
-            DataCollector::addToBatch(new QueryMacroPayload($this));
+            StorageDriverFactory::getDriverForConfig()->saveEntry((new QueryMacroPayload($this))->toArray());
             return $this;
         });
     }

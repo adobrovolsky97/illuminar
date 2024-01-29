@@ -11,7 +11,6 @@ use Illuminate\Queue\Events\JobQueued;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
-use Laravel\SerializableClosure\Exceptions\PhpVersionNotSupportedException;
 use Adobrovolsky97\Illuminar\Tests\TestCase;
 
 /**
@@ -21,7 +20,6 @@ class JobPayloadTest extends TestCase
 {
     /**
      * @return void
-     * @throws PhpVersionNotSupportedException
      */
     public function testToArray(): void
     {

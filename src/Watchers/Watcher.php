@@ -2,9 +2,10 @@
 
 namespace Adobrovolsky97\Illuminar\Watchers;
 
+use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
+use Adobrovolsky97\Illuminar\StorageDrivers\StorageDriverInterface;
+
 /**
- * Base watcher
- *
  * Class Watcher
  */
 abstract class Watcher
@@ -17,11 +18,17 @@ abstract class Watcher
     public bool $enabled = false;
 
     /**
+     * @var StorageDriverInterface
+     */
+    protected StorageDriverInterface $storageDriver;
+
+    /**
      * Watcher constructor.
      */
     public function __construct()
     {
         $this->initialize();
+        $this->storageDriver = StorageDriverFactory::getDriverForConfig();
     }
 
     /**

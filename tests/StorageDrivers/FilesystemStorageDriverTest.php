@@ -4,10 +4,9 @@ namespace Adobrovolsky97\Illuminar\Tests\StorageDrivers;
 
 use Adobrovolsky97\Illuminar\StorageDrivers\FilesystemStorageDriver;
 use Adobrovolsky97\Illuminar\Tests\TestCase;
-use Exception;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Filesystem\Filesystem;
-use Mockery;
+use PHPUnit\Framework\MockObject\Exception;
 
 /**
  * Class FilesystemStorageDriverTest
@@ -15,83 +14,109 @@ use Mockery;
 class FilesystemStorageDriverTest extends TestCase
 {
     /**
-     * @throws Exception
-     * @return void
+     * @var Filesystem
      */
-    public function testSaveDataToStorage(): void
-    {
-        $filesystem = Mockery::mock(Filesystem::class);
+    private $filesystem;
 
-        $filesystem->shouldReceive('isDirectory')->andReturn(false);
-        $filesystem->shouldReceive('makeDirectory')->andReturn(true);
-        $filesystem->shouldReceive('put')->twice();
-
-        $driver = new FilesystemStorageDriver($filesystem);
-        $driver->save(['data']);
-    }
-
+    /**
+     * @var FilesystemStorageDriver
+     */
+    private FilesystemStorageDriver $storageDriver;
 
     /**
      * @throws Exception
+     */
+    public function setUp(): void
+   {
+       parent::setUp();
+
+       $this->filesystem = $this->createMock(Filesystem::class);
+       $this->storageDriver = new FilesystemStorageDriver($this->filesystem);
+   }
+
+    /**
+     * New uuid entry should append data
+     *
      * @return void
      */
-    public function testAppendDataToStorage(): void
+    public function testSaveEntityWithNewUuidShouldAppendData(): void
     {
-        $filesystem = Mockery::mock(Filesystem::class);
+        $this->filesystem->method('exists')->willReturn(true);
+        $this->filesystem->method('get')->willReturn(json_encode([['uuid' => 'existing-uuid', 'key' => 'value']]));
+        $this->filesystem->method('isDirectory')->willReturn(true);
 
-        $filesystem->shouldReceive('isDirectory')->andReturn(false);
-        $filesystem->shouldReceive('makeDirectory')->andReturn(true);
-        $filesystem->shouldReceive('exists')->andReturn(true);
-        $filesystem->shouldReceive('get')->andReturn(json_encode(['existingData']));
-        $filesystem->shouldReceive('put')->twice();
+        $this->filesystem->expects($this->once())->method('put');
 
-        $driver = new FilesystemStorageDriver($filesystem);
-        $driver->append(['data']);
+        $this->storageDriver->saveEntry(['uuid' => 'new-uuid', 'key' => 'value']);
     }
 
     /**
+     * Existing uuid should update data
+     *
+     * @return void
+     */
+    public function testSaveEntryUpdatesDataWhenUuidFound(): void
+    {
+        $this->filesystem->method('exists')->willReturn(true);
+        $this->filesystem->method('get')->willReturn(json_encode([['uuid' => 'existing-uuid', 'data' => 'existing-data']]));
+        $this->filesystem->method('isDirectory')->willReturn(true);
+
+        $this->filesystem->expects($this->once())->method('put');
+
+        $this->storageDriver->saveEntry(['uuid' => 'existing-uuid', 'data' => 'updated-data']);
+    }
+
+    /**
+     * Empty array should be returned when file does not exist
+     *
+     * @return void
      * @throws FileNotFoundException
-     * @return void
      */
-    public function testGetDataFromStorage(): void
+    public function testGetDataReturnsEmptyArrayWhenFileDoesNotExist(): void
     {
-        $filesystem = Mockery::mock(Filesystem::class);
+        $this->filesystem->method('exists')->willReturn(false);
 
-        $filesystem->shouldReceive('exists')->andReturn(true);
-        $filesystem->shouldReceive('get')->andReturn(json_encode(['data']));
+        $data = $this->storageDriver->getData();
 
-        $driver = new FilesystemStorageDriver($filesystem);
-        $this->assertEquals(['data'], $driver->getData());
+        $this->assertEquals([], $data);
     }
 
     /**
+     *
+     * @return void
      * @throws FileNotFoundException
-     * @return void
      */
-    public function testGetDataFromNonExistentStorage(): void
+    public function testGetDataReturnsDecodedJsonWhenFileExists(): void
     {
-        $filesystem = Mockery::mock(Filesystem::class);
+        $this->filesystem->method('exists')->willReturn(true);
+        $this->filesystem->method('get')->willReturn(json_encode([['uuid' => 'existing-uuid', 'data' => 'existing-data']]));
+        $this->filesystem->method('isDirectory')->willReturn(true);
 
-        $filesystem->shouldReceive('exists')->andReturn(false);
+        $data = $this->storageDriver->getData();
 
-        $driver = new FilesystemStorageDriver($filesystem);
-        $this->assertEquals([], $driver->getData());
+        $this->assertEquals([['uuid' => 'existing-uuid', 'data' => 'existing-data']], $data);
     }
 
-
     /**
-     * @throws Exception
      * @return void
      */
-    public function testCreateDirectoryIfNotExists(): void
+    public function testClearDeletesFileWhenItExists(): void
     {
-        $filesystem = Mockery::mock(Filesystem::class);
+        $this->filesystem->method('exists')->willReturn(true);
+        $this->filesystem->expects($this->once())->method('delete');
+        $this->filesystem->method('isDirectory')->willReturn(true);
 
-        $filesystem->shouldReceive('isDirectory')->andReturn(false);
-        $filesystem->shouldReceive('makeDirectory')->andReturn(true);
-        $filesystem->shouldReceive('put')->twice();
+        $this->storageDriver->clear();
+    }
 
-        $driver = new FilesystemStorageDriver($filesystem);
-        $driver->save(['data']);
+    /**
+     * @return void
+     */
+    public function testClearDoesNothingWhenFileDoesNotExist(): void
+    {
+        $this->filesystem->method('exists')->willReturn(false);
+        $this->filesystem->expects($this->never())->method('delete');
+
+        $this->storageDriver->clear();
     }
 }
