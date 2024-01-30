@@ -43,11 +43,11 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
     {
         $this->publishes([
             __DIR__ . '/../public' => public_path('vendor/illuminar'),
-        ]);
+        ], ['illuminar-assets', 'laravel-assets']);
 
         $this->publishes([
             __DIR__ . '/config/illuminar.php' => config_path('illuminar.php'),
-        ]);
+        ], 'illuminar-config');
     }
 
     /**
