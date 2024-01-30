@@ -11,20 +11,20 @@
                  v-if="item.content">
                 <div class="flex flex-col gap-2">
                     <code v-for="(content, index) in item.content"
-                          class="border-gray-200 rounded-lg bg-gray-50 border p-2" :key="index"
+                          class="border-gray-200 rounded-lg bg-gray-50 dark:bg-gray-700 border p-2" :key="index"
                           v-html="content"></code>
                 </div>
             </div>
 
             <div v-if="item.sql"
-                 class="sql-code inline-block border p-2 border-gray-200 rounded-lg bg-gray-50 w-full">
+                 class="sql-code inline-block border p-2 border-gray-200 rounded-lg bg-gray-50 dark:bg-gray-700 w-full">
                 <code class="language-sql whitespace-pre-wrap break-words" ref="sqlCode"
                       v-html="formatSql(item.sql)"></code>
             </div>
 
             <div class="preview" v-if="item.preview">
                 <button @click="openPreview" type="button"
-                        class="text-gray-900 mt-2 w-full bg-white border border-gray-300 hover:bg-gray-100 font-medium rounded-lg text-sm px-5 py-2.5 me-2">
+                        class="mt-2 w-full bg-white dark:bg-gray-800 border border-gray-300 hover:bg-gray-100 font-medium rounded-lg text-sm px-5 py-2.5 me-2">
                     Preview Content
                 </button>
                 <modal height="auto" scrollable :name="'preview-'+item.uuid">
@@ -34,20 +34,20 @@
 
             <div class="data flex mt-4 flex-row justify-between">
                 <div
-                    class="inline-block border-gray-500 text-gray-800 px-3 py-2 text-xs font-medium rounded-lg border">
+                    class="inline-block px-3 py-2 text-xs font-medium rounded-lg border">
                     {{ item.type }}
                 </div>
                 <div class="tags flex flex-row gap-2 justify-end" v-if="Object.values(item.tags ?? [])?.length">
-                    <div
-                        v-if="item.duplicates_count"
-                        class="inline-block border-yellow-500 text-yellow-800 px-3 py-2 text-xs font-medium rounded-lg border">
-                        duplicates: {{ item.duplicates_count }}
-                    </div>
                     <div
                         v-for="(tag, index) in Object.values(item.tags)" :key="index"
                         :class="getTagColorOptions(tag)"
                         class="inline-block px-3 py-2 text-xs font-medium rounded-lg border">
                         {{ tag }}
+                    </div>
+                    <div
+                        v-if="item.duplicates_count"
+                        class="inline-block border-yellow-500 text-yellow-500 px-3 py-2 text-xs font-medium rounded-lg border">
+                        duplicates: {{ item.duplicates_count }}
                     </div>
                 </div>
             </div>
@@ -59,7 +59,7 @@
 import {Sfdump} from "../dump";
 import {format} from "sql-formatter";
 import hljs from "highlight.js/lib/core";
-import 'highlight.js/styles/github.css'
+import 'highlight.js/styles/base16/sandcastle.min.css';
 
 export default {
     props: {
@@ -69,10 +69,9 @@ export default {
         }
     },
     mounted() {
-        this.highlightSql();
-    },
-    updated() {
-        this.highlightSql();
+        if(this.item.type === 'query') {
+            this.highlightSql();
+        }
     },
     watch: {
         item: {
@@ -111,67 +110,48 @@ export default {
         },
         getMappedColor(type) {
             switch (type) {
-                case 'dump':
-                case 'event':
                 case 'orange':
                     return 'border-yellow-500 ';
-                case 'exception':
-                case 'mail':
                 case 'red':
                     return 'border-red-500';
-                case 'cache':
-                case 'model':
                 case 'green':
                     return 'border-green-500';
-                case 'job':
-                case 'query':
                 case 'blue':
                     return 'border-blue-500';
-                case 'http_request':
-                    return 'border-purple-500';
                 default:
                     return '';
             }
         },
         getTagColorOptions(tag) {
             switch (tag) {
-                case 'dump':
-                case 'event':
-                case 'PUT':
-                case 'PATCH':
-                case 'OPTIONS':
-                case 'updated':
-                    return 'border-yellow-500 text-yellow-800';
-                case 'exception':
-                case 'mail':
-                    return 'border-red-500 text-red-800';
-                case 'cache':
-                case 'model':
                 case 'POST':
                 case 'created':
                 case 'written':
-                    return 'border-green-500 text-greed-800';
-                case 'job':
-                case 'query':
+                    return 'border-green-500 text-green-500';
                 case 'queued':
                 case 'GET':
-                    return 'border-blue-500 text-blue-800';
+                    return 'border-blue-500 text-blue-500';
                 case 'http_request':
-                    return 'border-purple-500 text-purple-800';
+                    return 'border-purple-500 text-purple-500';
                 case 'slow':
                 case 'failed':
                 case 'DELETE':
                 case 'missed':
+                case 'forgotten':
                 case 'deleted':
-                    return 'border-red-500 text-red-800';
+                    return 'border-red-500 text-red-500';
                 case 'processing':
                 case 'duplicate':
+                case 'PUT':
+                case 'PATCH':
+                case 'OPTIONS':
+                case 'updated':
                 case 'macro':
-                    return 'border-yellow-500 text-yellow-800';
+                    return 'border-yellow-500 text-yellow-500';
                 case 'processed':
-                    return 'border-green-500 text-green-800';
+                    return 'border-green-500 text-green-500';
                 default:
-                    return 'border-gray-500';
+                    return '';
             }
         }
     }

@@ -178,16 +178,32 @@ pre.sf-dump .sf-dump-ref {
     color: #6E6E6E
 }
 
+.dark pre.sf-dump .sf-dump-ref {
+    color: #f8f8f8 !important;
+}
+
 pre.sf-dump .sf-dump-public {
     color: #262626
+}
+
+.dark pre.sf-dump .sf-dump-public {
+    color: #f8f8f8 !important;
 }
 
 pre.sf-dump .sf-dump-protected {
     color: #262626
 }
 
+.dark pre.sf-dump .sf-dump-protected {
+    color: #f8f8f8 !important;
+}
+
 pre.sf-dump .sf-dump-private {
     color: #262626
+}
+
+.dark pre.sf-dump .sf-dump-private {
+    color: #f8f8f8 !important;
 }
 
 pre.sf-dump .sf-dump-meta {

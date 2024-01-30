@@ -5,8 +5,11 @@ module.exports = {
             "./src/resources/**/*.blade.php",
             "./src/resources/**/*.{vue,js,ts,jsx,tsx}",
         ],
+        options: {
+            safelist: ['dark']
+        }
     },
-    darkMode: false,
+    darkMode: 'class',
     theme: {
     },
     variants: {

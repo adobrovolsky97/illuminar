@@ -65,6 +65,8 @@ Debug data can be viewed at the `APP_URL/illuminar` route.
 Illuminar provides a `illuminar()->dump(...$args)` function that can be used to dump variables to the illuminar screen.
 It is similar to the `dd` helper function, but it does not terminate the script execution.
 
+There is a blade directive `@illuminar(...$args)` that can be used to dump variables to the illuminar screen from blade templates.
+
 It is possible to add custom tags and colors to the dump, so it is easier to find it in the dump list.
 
 ```php

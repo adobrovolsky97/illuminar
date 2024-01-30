@@ -13,6 +13,7 @@ use Adobrovolsky97\Illuminar\Watchers\JobWatcher;
 use Adobrovolsky97\Illuminar\Watchers\MailWatcher;
 use Adobrovolsky97\Illuminar\Watchers\ModelWatcher;
 use Adobrovolsky97\Illuminar\Watchers\QueryWatcher;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -34,20 +35,23 @@ class ItemResource extends JsonResource
         $argumentFormatter = app(PrimitiveArgumentFormatter::class);
         $dumper = app(HtmlDumper::class);
 
+        $rawBody = $this->getBodyForDisplay();
+
         return [
             'type'             => $this['type'],
             'uuid'             => $this['uuid'],
-            'time'             => $this['time'] ?? now()->format('H:i:s'),
+            'time'             => !empty($this['time']) ? Carbon::parse($this['time'])->diffForHumans() : now()->diffForHumans(),
             'caller'           => $this['caller'] ?? null,
             'sql'              => $this['sql'] ?? null,
             'preview'          => $this['html'] ?? null,
             'color'            => $this['color'] ?? null,
             'hash'             => $this['hash'] ?? null,
             'duplicates_count' => $this['duplicates_count'] ?? null,
+            'content_hash'     => md5(json_encode($rawBody)),
             'tags'             => array_filter($this->getTagsForDisplay()),
             'content'          => array_map(function ($item) use ($argumentFormatter, $dumper) {
                 return $dumper->dump($argumentFormatter->convertFromPrimitive($item));
-            }, $this->getBodyForDisplay())
+            }, $rawBody)
         ];
     }
 

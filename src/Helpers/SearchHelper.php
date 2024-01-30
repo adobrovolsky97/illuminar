@@ -36,13 +36,17 @@ class SearchHelper
 
         $hashes = $data->where('type', QueryWatcher::getName())->pluck('hash')->countBy();
 
-        $data = $data->map(function ($item) use ($hashes, $filters) {
+        $data = $data->map(function ($item) use ($hashes, $filters, $data) {
             if ($item['type'] === QueryWatcher::getName() && isset($item['hash'])) {
                 $item['is_duplicate'] = !($filters['group_duplicated_queries'] ?? false) && $hashes[$item['hash']] > 1;
 
                 $item['duplicates_count'] = ($filters['group_duplicated_queries'] ?? false) && $hashes[$item['hash']] > 1
                     ? $hashes[$item['hash']]
                     : null;
+
+                $item['execution_time'] = ($filters['group_duplicated_queries'] ?? false) && $hashes[$item['hash']] > 1
+                    ? $data->where('hash', $item['hash'])->sum('execution_time')
+                    : $item['execution_time'];
 
                 $item['is_slow'] = ($filters['group_duplicated_queries'] ?? false) && $hashes[$item['hash']] > 1
                     ? false

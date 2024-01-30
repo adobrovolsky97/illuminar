@@ -8,8 +8,11 @@ use Adobrovolsky97\Illuminar\Http\Requests\SearchRequest;
 use Adobrovolsky97\Illuminar\Http\Resources\ItemResource;
 use Adobrovolsky97\Illuminar\StorageDrivers\StorageDriverInterface;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Response;
+use Symfony\Component\HttpFoundation\Response as Status;
 
 /**
  * Class IlluminarController
@@ -60,5 +63,17 @@ class IlluminarController extends Controller
         return ItemResource::collection(
             $this->searchHelper->filterData($this->storageDriver->getData(), $request->validated())
         );
+    }
+
+    /**
+     * Clear entries
+     *
+     * @return JsonResponse
+     */
+    public function clear(): JsonResponse
+    {
+        $this->storageDriver->clear();
+
+        return Response::json(null, Status::HTTP_NO_CONTENT);
     }
 }

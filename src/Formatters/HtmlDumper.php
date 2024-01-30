@@ -29,7 +29,6 @@ class HtmlDumper
         $this->dumper = $dumper;
         $this->cloner = $cloner;
 
-        $this->dumper->setTheme(config('illuminar.theme', 'light'));
         $this->dumper->setDumpHeader('');
     }
 
