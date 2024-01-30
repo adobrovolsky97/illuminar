@@ -2,14 +2,14 @@
 
 namespace Adobrovolsky97\Illuminar\Http\Controllers;
 
+use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
 use Adobrovolsky97\Illuminar\Helpers\SearchHelper;
 use Adobrovolsky97\Illuminar\Http\Requests\SearchRequest;
 use Adobrovolsky97\Illuminar\Http\Resources\ItemResource;
-use Adobrovolsky97\Illuminar\Illuminar;
+use Adobrovolsky97\Illuminar\StorageDrivers\StorageDriverInterface;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Routing\Controller;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Class IlluminarController
@@ -17,9 +17,9 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 class IlluminarController extends Controller
 {
     /**
-     * @var Illuminar
+     * @var StorageDriverInterface
      */
-    private Illuminar $illuminar;
+    private StorageDriverInterface $storageDriver;
 
     /**
      * @var SearchHelper
@@ -27,12 +27,11 @@ class IlluminarController extends Controller
     private SearchHelper $searchHelper;
 
     /**
-     * @param Illuminar $illuminar
      * @param SearchHelper $searchHelper
      */
-    public function __construct(Illuminar $illuminar, SearchHelper $searchHelper)
+    public function __construct(SearchHelper $searchHelper)
     {
-        $this->illuminar = $illuminar;
+        $this->storageDriver = StorageDriverFactory::getDriverForConfig();
         $this->searchHelper = $searchHelper;
     }
 
@@ -58,6 +57,8 @@ class IlluminarController extends Controller
      */
     public function getData(SearchRequest $request): AnonymousResourceCollection
     {
-        return ItemResource::collection($this->searchHelper->filterData($this->illuminar->getData(), $request->validated()));
+        return ItemResource::collection(
+            $this->searchHelper->filterData($this->storageDriver->getData(), $request->validated())
+        );
     }
 }

@@ -2,7 +2,6 @@
 
 namespace Adobrovolsky97\Illuminar\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
 use Adobrovolsky97\Illuminar\Payloads\QueryPayload;
 use Adobrovolsky97\Illuminar\Traits\HasBacktrace;
 use Illuminate\Database\Events\QueryExecuted;
@@ -38,7 +37,7 @@ class QueryWatcher extends Watcher
             $caller = $this->getCallerFromStackTrace();
 
             if (!empty($caller) && !$this->shouldIgnoreQuery($caller['file'])) {
-                DataCollector::addToBatch(new QueryPayload($query));
+                $this->storageDriver->saveEntry((new QueryPayload($query, $caller))->toArray());
             }
         });
     }

@@ -2,7 +2,7 @@
 
 namespace Adobrovolsky97\Illuminar\Tests\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
+use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
 use Adobrovolsky97\Illuminar\Tests\Stubs\TestUserModel;
 use Adobrovolsky97\Illuminar\Tests\TestCase;
 use Adobrovolsky97\Illuminar\Watchers\QueryWatcher;
@@ -44,10 +44,12 @@ class QueryWatcherTest extends TestCase
             ]);
         }
 
-        $batch = DataCollector::getBatch();
-        $this->assertCount(10, $batch);
+        $data = StorageDriverFactory::getDriverForConfig()->getData();
+
+        $this->assertNotEmpty($data);
+        $this->assertCount(10, $data);
         // All 10 queries has the same hash, so they are duplicates
-        $this->assertCount(1, array_unique(array_column($batch, 'hash')));
+        $this->assertCount(1, array_unique(array_column($data, 'hash')));
     }
 
     /**
@@ -67,15 +69,14 @@ class QueryWatcherTest extends TestCase
             ->where('created_at', '<=', Carbon::parse('2024-01-26'))
             ->first();
 
-        $batch = DataCollector::getBatch();
-        $this->assertCount(1, $batch);
+        $data = StorageDriverFactory::getDriverForConfig()->getData();
+        $this->assertCount(1, $data);
 
-        $entry = reset($batch);
         $this->assertSame(
             <<<'SQL'
                 select * from "test_users" where "id" = 25 and "name" LIKE '%User%' and "is_active" = true and "email" = 'test@illuminar.com' and "created_at" <= '2024-01-26 00:00:00' and "test_users"."deleted_at" is null limit 1
                 SQL,
-            $entry['sql']
+            $data[0]['sql']
         );
     }
 
@@ -97,16 +98,15 @@ class QueryWatcherTest extends TestCase
                 'created_at' => Carbon::parse('2019-01-01'),
             ]);
 
-        $batch = DataCollector::getBatch();
-        $this->assertCount(1, $batch);
+        $data = StorageDriverFactory::getDriverForConfig()->getData();
 
-        $entry = reset($batch);
+        $this->assertCount(1, $data);
 
         $this->assertSame(
             <<<'SQL'
             update "test_users" set "email" = 'test@illuminar.com', "name" = 'Andrew' where "is_active" = false and "created_at" < '2019-01-01 00:00:00'
             SQL,
-            $entry['sql']
+            $data[0]['sql']
         );
     }
 
@@ -123,10 +123,10 @@ class QueryWatcherTest extends TestCase
             ->illuminar()
             ->first();
 
-        $batch = array_values(DataCollector::getBatch());
-        $this->assertCount(2, $batch);
+        $data = StorageDriverFactory::getDriverForConfig()->getData();
+        $this->assertCount(2, $data);
 
-        foreach ($batch as $entry) {
+        foreach ($data as $entry) {
             $this->assertEquals(QueryWatcher::getName(), $entry['type']);
             $this->assertTrue($entry['is_macro']);
         }
@@ -135,14 +135,14 @@ class QueryWatcherTest extends TestCase
             <<<'SQL'
             select * from "test_users" where "is_active" = false
             SQL,
-            $batch[0]['sql']
+            $data[0]['sql']
         );
 
         $this->assertEquals(
             <<<'SQL'
             select * from "test_users" where "is_active" = false and "email" = 'test@illuminar.com'
             SQL,
-            $batch[1]['sql']
+            $data[1]['sql']
         );
     }
 
@@ -158,10 +158,10 @@ class QueryWatcherTest extends TestCase
             ->illuminar()
             ->first();
 
-        $batch = array_values(DataCollector::getBatch());
-        $this->assertCount(2, $batch);
+        $data = StorageDriverFactory::getDriverForConfig()->getData();
+        $this->assertCount(2, $data);
 
-        foreach ($batch as $entry) {
+        foreach ($data as $entry) {
             $this->assertEquals(QueryWatcher::getName(), $entry['type']);
             $this->assertTrue($entry['is_macro']);
         }
@@ -170,14 +170,14 @@ class QueryWatcherTest extends TestCase
             <<<'SQL'
             select * from "test_users" where "is_active" = false
             SQL,
-            $batch[0]['sql']
+            $data[0]['sql']
         );
 
         $this->assertEquals(
             <<<'SQL'
             select * from "test_users" where "is_active" = false and "email" = 'test@illuminar.com'
             SQL,
-            $batch[1]['sql']
+            $data[1]['sql']
         );
     }
 

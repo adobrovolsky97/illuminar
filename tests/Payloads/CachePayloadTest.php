@@ -8,7 +8,6 @@ use Illuminate\Cache\Events\CacheHit;
 use Illuminate\Cache\Events\CacheMissed;
 use Illuminate\Cache\Events\KeyForgotten;
 use Illuminate\Cache\Events\KeyWritten;
-use Laravel\SerializableClosure\Exceptions\PhpVersionNotSupportedException;
 
 /**
  * Class CachePayloadTest
@@ -19,7 +18,6 @@ class CachePayloadTest extends TestCase
      * Test cache hit event
      *
      * @return void
-     * @throws PhpVersionNotSupportedException
      */
     public function testCacheHitEvent(): void
     {
@@ -39,7 +37,6 @@ class CachePayloadTest extends TestCase
      * Test cache missed event
      *
      * @return void
-     * @throws PhpVersionNotSupportedException
      */
     public function testCacheMissedEvent(): void
     {
@@ -59,7 +56,6 @@ class CachePayloadTest extends TestCase
      * Test key written event
      *
      * @return void
-     * @throws PhpVersionNotSupportedException
      */
     public function testKeyWrittenEvent(): void
     {
@@ -79,7 +75,6 @@ class CachePayloadTest extends TestCase
      * Test key forgotten event
      *
      * @return void
-     * @throws PhpVersionNotSupportedException
      */
     public function testKeyForgottenEvent(): void
     {

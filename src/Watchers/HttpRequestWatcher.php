@@ -2,7 +2,6 @@
 
 namespace Adobrovolsky97\Illuminar\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
 use Adobrovolsky97\Illuminar\Payloads\HttpRequestPayload;
 use Illuminate\Http\Client\Events\ResponseReceived;
 use Illuminate\Support\Facades\Event;
@@ -31,7 +30,7 @@ class HttpRequestWatcher extends Watcher
                 return;
             }
 
-            DataCollector::addToBatch(new HttpRequestPayload($event));
+            $this->storageDriver->saveEntry((new HttpRequestPayload($event))->toArray());
         });
     }
 }

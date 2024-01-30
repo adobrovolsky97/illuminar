@@ -2,7 +2,7 @@
 
 namespace Adobrovolsky97\Illuminar\Tests\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
+use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
 use Adobrovolsky97\Illuminar\Tests\Stubs\TestUserModel;
 use Adobrovolsky97\Illuminar\Tests\TestCase;
 use Adobrovolsky97\Illuminar\Watchers\ModelWatcher;
@@ -47,11 +47,11 @@ class ModelWatcherTest extends TestCase
         illuminar()->stopTrackingModels();
         $model->update(['name' => 'Andrew']);
 
-        $batch = collect(DataCollector::getBatch());
+        $data = collect(StorageDriverFactory::getDriverForConfig()->getData());
 
         // 5 b/c of soft deletes, it performs 2 queries: update and delete
-        $this->assertCount(5, $batch);
-        $this->assertCount(5, $batch->where('type', ModelWatcher::getName()));
+        $this->assertCount(5, $data);
+        $this->assertCount(5, $data->where('type', ModelWatcher::getName()));
     }
 
     /**

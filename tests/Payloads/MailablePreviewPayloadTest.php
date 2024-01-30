@@ -4,7 +4,6 @@ namespace Adobrovolsky97\Illuminar\Tests\Payloads;
 
 use Adobrovolsky97\Illuminar\Payloads\MailablePreviewPayload;
 use Adobrovolsky97\Illuminar\Watchers\MailWatcher;
-use Laravel\SerializableClosure\Exceptions\PhpVersionNotSupportedException;
 use PHPUnit\Framework\MockObject\Exception;
 use Adobrovolsky97\Illuminar\Tests\TestCase;
 use Illuminate\Mail\Mailable;
@@ -18,7 +17,6 @@ class MailablePreviewPayloadTest extends TestCase
     /**
      * @throws ReflectionException
      * @throws Exception
-     * @throws PhpVersionNotSupportedException
      */
     public function testToArray(): void
     {

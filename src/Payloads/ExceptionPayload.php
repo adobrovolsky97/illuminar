@@ -4,7 +4,6 @@ namespace Adobrovolsky97\Illuminar\Payloads;
 
 use Adobrovolsky97\Illuminar\Watchers\ExceptionWatcher;
 use Illuminate\Log\Events\MessageLogged;
-use Laravel\SerializableClosure\Exceptions\PhpVersionNotSupportedException;
 use Throwable;
 
 /**
@@ -31,7 +30,6 @@ class ExceptionPayload extends Payload
 
     /**
      * @return array
-     * @throws PhpVersionNotSupportedException
      */
     public function toArray(): array
     {
@@ -45,7 +43,7 @@ class ExceptionPayload extends Payload
             'message' => $this->exception->getMessage(),
             'code'    => $this->exception->getCode(),
             'caller'  => $this->exception->getFile() . ':' . $this->exception->getLine(),
-            'time'      => now()->format('H:i:s'),
+            'time'    => now()->format('H:i:s'),
         ];
     }
 }

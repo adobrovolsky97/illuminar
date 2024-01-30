@@ -2,7 +2,6 @@
 
 namespace Adobrovolsky97\Illuminar\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
 use Adobrovolsky97\Illuminar\Events\SlowQueryFound;
 use Adobrovolsky97\Illuminar\Payloads\QueryPayload;
 use Illuminate\Database\Events\QueryExecuted;
@@ -39,7 +38,7 @@ class SlowQueryWatcher extends QueryWatcher
             if (!empty($caller) && !$this->shouldIgnoreQuery($caller['file'])) {
 
                 Event::dispatch(new SlowQueryFound($query));
-                DataCollector::addToBatch(new QueryPayload($query));
+                $this->storageDriver->saveEntry((new QueryPayload($query))->toArray());
             }
         });
     }

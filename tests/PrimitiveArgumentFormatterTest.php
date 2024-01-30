@@ -31,7 +31,6 @@ class PrimitiveArgumentFormatterTest extends TestCase
 
     /**
      * @return void
-     * @throws PhpVersionNotSupportedException
      */
     public function testConvertArray(): void
     {
@@ -45,7 +44,6 @@ class PrimitiveArgumentFormatterTest extends TestCase
 
     /**
      * @return void
-     * @throws PhpVersionNotSupportedException
      */
     public function testConvertClosure(): void
     {
@@ -59,7 +57,6 @@ class PrimitiveArgumentFormatterTest extends TestCase
 
     /**
      * @return void
-     * @throws PhpVersionNotSupportedException
      */
     public function testConvertSerializableObject()
     {
@@ -71,7 +68,6 @@ class PrimitiveArgumentFormatterTest extends TestCase
 
     /**
      * @return void
-     * @throws PhpVersionNotSupportedException
      */
     public function testConvertNonSerializableObject(): void
     {

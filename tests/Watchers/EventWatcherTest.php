@@ -2,9 +2,10 @@
 
 namespace Adobrovolsky97\Illuminar\Tests\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
+use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
 use Adobrovolsky97\Illuminar\Tests\Stubs\TestEvent;
 use Adobrovolsky97\Illuminar\Tests\TestCase;
+use Adobrovolsky97\Illuminar\Watchers\EventWatcher;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
 
@@ -18,19 +19,16 @@ class EventWatcherTest extends TestCase
      */
     public function testTrackingEvents()
     {
-        $this->assertEmpty(DataCollector::getBatch());
-
         illuminar()->trackEvents();
         Event::dispatch(new TestEvent(['key' => 'value']));
 
         illuminar()->stopTrackingEvents();
         Event::dispatch(new TestEvent(['key' => 'value']));
 
-        $batch = DataCollector::getBatch();
-        $this->assertCount(1, $batch);
+        $data = StorageDriverFactory::getDriverForConfig()->getData();
 
-        $entry = reset($batch);
-        $this->assertEquals('event', $entry['type']);
+        $this->assertNotEmpty($data);
+        $this->assertEquals(EventWatcher::getName(), $data[0]['type']);
     }
 
     /**
@@ -41,8 +39,6 @@ class EventWatcherTest extends TestCase
      */
     public function testIgnorePackageEvents(): void
     {
-        $this->assertEmpty(DataCollector::getBatch());
-
         Config::set('illuminar.events.ignore_framework_events', false);
 
         illuminar()->trackEvents();
@@ -50,16 +46,16 @@ class EventWatcherTest extends TestCase
         Event::dispatch(new TestEvent(['key' => 'value']));
         Event::dispatch('eloquent.bootstrapping: *');
 
-        $batch = array_values(DataCollector::getBatch());
+        $data = StorageDriverFactory::getDriverForConfig()->getData();
 
-        $this->assertCount(2, $batch);
-        $this->assertEquals(TestEvent::class, $batch[0]['event_name']);
-        $this->assertEquals('eloquent.bootstrapping: *', $batch[1]['event_name']);
+        $this->assertCount(2, $data);
+        $this->assertEquals(TestEvent::class, $data[0]['event_name']);
+        $this->assertEquals('eloquent.bootstrapping: *', $data[1]['event_name']);
 
         Config::set('illuminar.events.ignore_framework_events', true);
         Event::dispatch('eloquent.bootstrapping: *');
 
-        $this->assertCount(2, DataCollector::getBatch());
+        $this->assertCount(2, StorageDriverFactory::getDriverForConfig()->getData());
     }
 
     /**
@@ -74,6 +70,6 @@ class EventWatcherTest extends TestCase
 
         Event::dispatch(new TestEvent(['key' => 'value']));
 
-        $this->assertEmpty(DataCollector::getBatch());
+        $this->assertEmpty(StorageDriverFactory::getDriverForConfig()->getData());
     }
 }

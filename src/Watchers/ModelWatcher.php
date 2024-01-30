@@ -2,7 +2,6 @@
 
 namespace Adobrovolsky97\Illuminar\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
 use Adobrovolsky97\Illuminar\Payloads\ModelPayload;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
@@ -30,7 +29,7 @@ class ModelWatcher extends Watcher
                 return;
             }
 
-            DataCollector::addToBatch(new ModelPayload($event, $payload));
+            $this->storageDriver->saveEntry((new ModelPayload($event, $payload))->toArray());
         });
     }
 

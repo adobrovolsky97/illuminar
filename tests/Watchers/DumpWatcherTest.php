@@ -2,8 +2,9 @@
 
 namespace Adobrovolsky97\Illuminar\Tests\Watchers;
 
-use Adobrovolsky97\Illuminar\DataCollector;
+use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
 use Adobrovolsky97\Illuminar\Tests\TestCase;
+use Adobrovolsky97\Illuminar\Watchers\DumpWatcher;
 use Exception;
 
 /**
@@ -19,10 +20,9 @@ class DumpWatcherTest extends TestCase
     {
         illuminar()->dump('test');
 
-        $batch = DataCollector::getBatch();
-        $this->assertCount(1, $batch);
+        $data = StorageDriverFactory::getDriverForConfig()->getData();
 
-        $entry = reset($batch);
-        $this->assertEquals('dump', $entry->toArray()['type']);
+        $this->assertNotEmpty($data);
+        $this->assertEquals(DumpWatcher::getName(), $data[0]['type']);
     }
 }

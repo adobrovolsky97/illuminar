@@ -4,7 +4,6 @@ namespace Adobrovolsky97\Illuminar\Payloads;
 
 use Adobrovolsky97\Illuminar\Formatters\PrimitiveArgumentFormatter;
 use Adobrovolsky97\Illuminar\Watchers\EventWatcher;
-use Laravel\SerializableClosure\Exceptions\PhpVersionNotSupportedException;
 
 /**
  * Class EventPayload
@@ -42,7 +41,6 @@ class EventPayload extends Payload
 
     /**
      * @return array
-     * @throws PhpVersionNotSupportedException
      */
     public function toArray(): array
     {

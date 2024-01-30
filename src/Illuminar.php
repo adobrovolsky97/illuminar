@@ -2,9 +2,6 @@
 
 namespace Adobrovolsky97\Illuminar;
 
-use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
-use Adobrovolsky97\Illuminar\Payloads\DumpPayload;
-use Adobrovolsky97\Illuminar\Payloads\MailablePreviewPayload;
 use Adobrovolsky97\Illuminar\Watchers\CacheWatcher;
 use Adobrovolsky97\Illuminar\Watchers\DumpWatcher;
 use Adobrovolsky97\Illuminar\Watchers\EventWatcher;
@@ -19,7 +16,6 @@ use Adobrovolsky97\Illuminar\Watchers\Watcher;
 use Exception;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Str;
-use Throwable;
 
 /**
  * Class Illuminar
@@ -85,10 +81,6 @@ final class Illuminar
         self::registerWatcher(app(DumpWatcher::class));
         // This one should be registered by default as it will catch JobProcessed and JobFailed events
         self::registerWatcher(app(JobWatcher::class));
-
-        app()->terminating(function () {
-            DataCollector::storeData();
-        });
     }
 
     /**
@@ -141,22 +133,27 @@ final class Illuminar
      * Debug mailable
      *
      * @param Mailable $mailable
-     * @return Illuminar
+     * @return void
      */
-    public function mailable(Mailable $mailable): self
+    public function mailable(Mailable $mailable): void
     {
-        DataCollector::addToBatch(new MailablePreviewPayload($mailable));
+        $watcher = self::getWatcher(MailWatcher::getName());
 
-        return $this;
+        if (is_null($watcher)) {
+            $watcher = app(MailWatcher::class);
+            self::registerWatcher($watcher);
+        }
+
+        $watcher->mailable($mailable);
     }
 
     /**
      * Create dump
      *
      * @param ...$args
-     * @return DumpPayload
+     * @return DumpWatcher
      */
-    public function dump(...$args): DumpPayload
+    public function dump(...$args): DumpWatcher
     {
         /** @var DumpWatcher $watcher */
         $watcher = self::getWatcher(DumpWatcher::getName());
@@ -198,20 +195,6 @@ final class Illuminar
         }
 
         $this->dump($envArray)->tag('env');
-    }
-
-    /**
-     * Get data
-     *
-     * @return array
-     */
-    public static function getData(): array
-    {
-        try {
-            return app(StorageDriverFactory::getDriverForConfig())->getData();
-        } catch (Throwable $e) {
-            return [];
-        }
     }
 
     /**

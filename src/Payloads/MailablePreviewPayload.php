@@ -5,7 +5,6 @@ namespace Adobrovolsky97\Illuminar\Payloads;
 use Adobrovolsky97\Illuminar\Formatters\PrimitiveArgumentFormatter;
 use Adobrovolsky97\Illuminar\Watchers\MailWatcher;
 use Illuminate\Mail\Mailable;
-use Laravel\SerializableClosure\Exceptions\PhpVersionNotSupportedException;
 use ReflectionException;
 
 /**
@@ -31,7 +30,6 @@ class MailablePreviewPayload extends Payload
     /**
      * @return array
      * @throws ReflectionException
-     * @throws PhpVersionNotSupportedException
      */
     public function toArray(): array
     {

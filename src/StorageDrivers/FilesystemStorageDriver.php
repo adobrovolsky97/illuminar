@@ -5,6 +5,7 @@ namespace Adobrovolsky97\Illuminar\StorageDrivers;
 use Exception;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Filesystem\Filesystem;
+use Throwable;
 
 /**
  * Class FilesystemStorageDriver
@@ -31,42 +32,44 @@ class FilesystemStorageDriver implements StorageDriverInterface
     }
 
     /**
-     * Save data to filesystem storage
+     * Clear storage
      *
-     * @param array $data
      * @return void
-     * @throws Exception
      */
-    public function save(array $data): void
+    public function clear(): void
     {
-        $this->createDirectoryIfNotExists();
-
-        $this->filesystem->put($this->getFilePath(), json_encode($data));
+        if ($this->filesystem->exists($this->getFilePath())) {
+            $this->filesystem->delete($this->getFilePath());
+        }
     }
 
     /**
-     * Append data to storage
+     * Handle entry
      *
      * @param array $data
      * @return void
-     * @throws Exception
      */
-    public function append(array $data): void
+    public function saveEntry(array $data): void
     {
-        $this->createDirectoryIfNotExists();
-
-        // Get existing data
-        $existingData = [];
-        if ($this->filesystem->exists($this->getFilePath())) {
-            $existingData = json_decode($this->filesystem->get($this->getFilePath()), true);
-            if (!is_array($existingData)) {
-                $existingData = [];
-            }
+        if (!isset($data['uuid'])) {
+            return;
         }
 
-        // Merge existing data with new data
-        $mergedData = array_merge($existingData, $data);
-        $this->filesystem->put($this->getFilePath(), json_encode($mergedData));
+        try {
+            $existingData = $this->getData();
+
+            $index = array_search($data['uuid'], array_column($existingData, 'uuid'));
+
+            if ($index === false) {
+                $this->append([$data]);
+                return;
+            }
+
+            $existingData[$index] = $data;
+            $this->save($existingData);
+        } catch (Throwable $exception) {
+
+        }
     }
 
     /**
@@ -82,6 +85,49 @@ class FilesystemStorageDriver implements StorageDriverInterface
         }
 
         return json_decode($this->filesystem->get($this->getFilePath()), true);
+    }
+
+    /**
+     * Save data to filesystem storage
+     *
+     * @param array $data
+     * @return void
+     * @throws Exception
+     */
+    private function save(array $data): void
+    {
+        $this->createDirectoryIfNotExists();
+
+        $this->filesystem->put($this->getFilePath(), json_encode($data));
+    }
+
+    /**
+     * Append data to storage
+     *
+     * @param array $data
+     * @return void
+     * @throws Exception
+     */
+    private function append(array $data): void
+    {
+        $this->createDirectoryIfNotExists();
+
+        // Get existing data
+        $existingData = [];
+        if ($this->filesystem->exists($this->getFilePath())) {
+            $existingData = json_decode($this->filesystem->get($this->getFilePath()), true);
+            if (!is_array($existingData)) {
+                $existingData = [];
+            }
+        }
+
+        // Merge existing data with new data
+        $mergedData = array_merge($data, $existingData);
+
+        // Limit entries
+        $mergedData = array_slice($mergedData, 0, config('illuminar.storage.limit'));
+
+        $this->filesystem->put($this->getFilePath(), json_encode($mergedData));
     }
 
     /**
