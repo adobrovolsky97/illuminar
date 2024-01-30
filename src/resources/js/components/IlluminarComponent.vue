@@ -100,6 +100,8 @@ export default {
     },
     data() {
         return {
+            refreshTimer: null,
+            filtersInitiated: false,
             page: 1,
             filters: {
                 'types[]': [],
@@ -123,6 +125,20 @@ export default {
             },
         }
     },
+    watch: {
+        'filters': {
+            handler() {
+                if (this.filtersInitiated) {
+                    this.page = 1;
+                    this.fetchData('replace');
+
+                    clearInterval(this.refreshTimer);
+                    this.fetchDataByTimer();
+                }
+            },
+            deep: true
+        }
+    },
     created() {
         this.resolveQueryParams();
         this.fetchData();
@@ -132,7 +148,7 @@ export default {
         /**
          * Fetch data
          */
-        fetchData(mode = 'replace', page = 1) {
+        fetchData(mode = 'prepend', page = 1) {
             this.axios
                 .get('/illuminar/data', {
                     params: {
@@ -142,9 +158,14 @@ export default {
                 })
                 .then(response => {
                     if (mode === 'replace') {
-                        this.data.unshift(...response.data.data.filter(item => !this.data.find(i => i.uuid === item.uuid)));
+                        this.data = response.data.data;
                     } else {
-                        this.data.push(...response.data.data.filter(item => !this.data.find(i => i.uuid === item.uuid)));
+                        let mergedData = [...this.data, ...response.data.data];
+                        let uniqueData = Object.values(mergedData.reduce((acc, cur) => Object.assign(acc, {[cur.uuid]: cur}), {}));
+
+                        this.data = mode === 'prepend'
+                            ? uniqueData.sort((a, b) => a.uuid < b.uuid ? 1 : -1)
+                            : uniqueData.sort((a, b) => a.uuid > b.uuid ? 1 : -1);
                     }
                     this.hasMorePages = response.data.meta.last_page > this.page;
                 })
@@ -153,7 +174,7 @@ export default {
                 })
         },
         fetchDataByTimer() {
-            setInterval(() => {
+            this.refreshTimer = setInterval(() => {
                 this.fetchData();
             }, 3000);
         },
@@ -216,6 +237,8 @@ export default {
                 this.filters['types[]'] = Object.keys(this.dataTypes);
                 this.updateUrlParams('types[]', this.filters['types[]'], true)
             }
+
+            this.filtersInitiated = true;
         },
         /**
          * Toggle boolean filter and set 0 or 1

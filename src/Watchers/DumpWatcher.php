@@ -26,9 +26,9 @@ class DumpWatcher extends Watcher
     ];
 
     /**
-     * @var DumpPayload
+     * @var string
      */
-    private DumpPayload $dumpPayload;
+    private string $uuid;
 
     /**
      * Add dump to batch
@@ -38,9 +38,11 @@ class DumpWatcher extends Watcher
      */
     public function addDump(...$args): self
     {
-        $this->dumpPayload = new DumpPayload(...$args);
+        $dumpPayload = new DumpPayload(...$args);
 
-        $this->storageDriver->saveEntry($this->dumpPayload->toArray());
+        $this->uuid = $dumpPayload->getUuid();
+
+        $this->storageDriver->saveEntry($dumpPayload->toArray());
 
         return $this;
     }
@@ -55,7 +57,7 @@ class DumpWatcher extends Watcher
     public function __call(string $name, array $arguments): self
     {
         if (in_array($name, self::COLORS)) {
-            $this->storageDriver->saveEntry(array_merge($this->dumpPayload->toArray(), ['color' => $name]));
+            $this->storageDriver->saveEntry(['uuid' => $this->uuid, 'color' => $name]);
             return $this;
         }
 
@@ -81,7 +83,7 @@ class DumpWatcher extends Watcher
      */
     public function tag(string $tag): self
     {
-        $this->storageDriver->saveEntry(array_merge($this->dumpPayload->toArray(), ['tag' => $tag]));
+        $this->storageDriver->saveEntry(['uuid' => $this->uuid, 'tag' => $tag]);
         return $this;
     }
 

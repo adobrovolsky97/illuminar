@@ -65,7 +65,7 @@ class FilesystemStorageDriver implements StorageDriverInterface
                 return;
             }
 
-            $existingData[$index] = $data;
+            $existingData[$index] = array_merge($existingData[$index], $data);
             $this->save($existingData);
         } catch (Throwable $exception) {
 

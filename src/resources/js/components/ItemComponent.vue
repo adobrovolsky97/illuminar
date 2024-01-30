@@ -96,7 +96,10 @@ export default {
         highlightSql() {
             if (this.$refs.sqlCode) {
                 this.$nextTick(() => {
-                    hljs.highlightElement(this.$refs.sqlCode);
+                    if (this.$refs.sqlCode.dataset.highlighted !== 'yes') {
+                        hljs.highlightElement(this.$refs.sqlCode);
+                        this.$refs.sqlCode.dataset.highlighted = 'yes';
+                    }
                 });
             }
         },
