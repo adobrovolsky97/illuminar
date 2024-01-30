@@ -122,7 +122,11 @@ class FilesystemStorageDriver implements StorageDriverInterface
         }
 
         // Merge existing data with new data
-        $mergedData = array_merge($existingData, $data);
+        $mergedData = array_merge($data, $existingData);
+
+        // Limit entries
+        $mergedData = array_slice($mergedData, 0, config('illuminar.storage.limit'));
+
         $this->filesystem->put($this->getFilePath(), json_encode($mergedData));
     }
 

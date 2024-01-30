@@ -2,7 +2,6 @@
 
 namespace Adobrovolsky97\Illuminar;
 
-use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
 use Adobrovolsky97\Illuminar\Watchers\CacheWatcher;
 use Adobrovolsky97\Illuminar\Watchers\DumpWatcher;
 use Adobrovolsky97\Illuminar\Watchers\EventWatcher;
@@ -17,7 +16,6 @@ use Adobrovolsky97\Illuminar\Watchers\Watcher;
 use Exception;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Str;
-use Throwable;
 
 /**
  * Class Illuminar
@@ -197,20 +195,6 @@ final class Illuminar
         }
 
         $this->dump($envArray)->tag('env');
-    }
-
-    /**
-     * Get data
-     *
-     * @return array
-     */
-    public static function getData(): array
-    {
-        try {
-            return StorageDriverFactory::getDriverForConfig()->getData();
-        } catch (Throwable $e) {
-            return [];
-        }
     }
 
     /**

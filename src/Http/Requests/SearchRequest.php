@@ -27,7 +27,7 @@ class SearchRequest extends FormRequest
         return [
             'page'                     => ['nullable', 'integer', 'min:1'],
             'page_size'                => ['nullable', 'integer', 'min:50'],
-            'search'                   => ['nullable', 'string', 'min:3'],
+            'search'                   => ['nullable', 'string'],
             'group_duplicated_queries' => ['nullable', 'boolean'],
             'is_slow'                  => ['nullable', 'boolean'],
             'is_duplicate'             => ['nullable', 'boolean'],
