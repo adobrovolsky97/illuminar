@@ -56,15 +56,20 @@
                 </div>
             </div>
             <div class="w-full md:pl-4 mt-4 md:mt-0 lg:w-3/4">
-                <input type="text"
-                       ref="searchInput"
-                       id="search"
-                       name="search"
-                       autocomplete="off"
-                       :value="filters.search"
-                       @input="delaySearch"
-                       class="py-3 px-4 border ps-11 shadow-lg block w-full border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-slate-900 dark:border-gray-700 dark:text-gray-400 dark:focus:ring-gray-600"
-                       placeholder="Search">
+                <div class="w-full">
+                    <div class="flex space-x-4">
+                        <div class="flex rounded-md overflow-hidden w-full">
+                            <input type="text"
+                                   ref="searchInput"
+                                   id="search"
+                                   name="search"
+                                   :value="filters.search"
+                                   @input="onInput"
+                                   class="py-3 px-4 border ps-11 shadow-lg block w-full border-gray-200 rounded-lg text-sm"
+                                   placeholder="Search">
+                        </div>
+                    </div>
+                </div>
                 <div class="flex flex-wrap items-center">
                     <section class="items-center font-poppins w-full">
                         <div class="justify-center pt-4 mx-auto" v-if="data.length">
@@ -95,8 +100,6 @@ export default {
     },
     data() {
         return {
-            searchTimer: null,
-            filtersInitiated: false,
             page: 1,
             filters: {
                 'types[]': [],
@@ -122,38 +125,37 @@ export default {
     },
     created() {
         this.resolveQueryParams();
-    },
-    watch: {
-        'filters': {
-            handler() {
-                if (this.filtersInitiated) {
-                    this.data = [];
-                    this.page = 1;
-                    this.fetchData();
-                }
-            },
-            deep: true
-        }
+        this.fetchData();
+        this.fetchDataByTimer();
     },
     methods: {
         /**
          * Fetch data
          */
-        fetchData() {
+        fetchData(mode = 'replace', page = 1) {
             this.axios
                 .get('/illuminar/data', {
                     params: {
                         ...this.filters,
-                        page: this.page
+                        page: page
                     }
                 })
                 .then(response => {
-                    this.data = [...this.data, ...response.data.data];
+                    if (mode === 'replace') {
+                        this.data.unshift(...response.data.data.filter(item => !this.data.find(i => i.uuid === item.uuid)));
+                    } else {
+                        this.data.push(...response.data.data.filter(item => !this.data.find(i => i.uuid === item.uuid)));
+                    }
                     this.hasMorePages = response.data.meta.last_page > this.page;
                 })
                 .catch(error => {
-                    alert(error)
+                    console.log(error)
                 })
+        },
+        fetchDataByTimer() {
+            setInterval(() => {
+                this.fetchData();
+            }, 3000);
         },
         /**
          * Toggle type for search
@@ -214,8 +216,6 @@ export default {
                 this.filters['types[]'] = Object.keys(this.dataTypes);
                 this.updateUrlParams('types[]', this.filters['types[]'], true)
             }
-
-            this.filtersInitiated = true;
         },
         /**
          * Toggle boolean filter and set 0 or 1
@@ -226,22 +226,19 @@ export default {
             this.updateUrlParams(key, this.filters[key]);
         },
         /**
-         * Delayed search
+         * On input
          */
-        delaySearch() {
-            clearTimeout(this.searchTimer);
-            this.searchTimer = setTimeout(() => {
-                this.filters['search'] = this.$refs.searchInput.value;
-                this.updateUrlParams('search', this.filters['search']);
-            }, 800);
+        onInput() {
+            this.filters['search'] = this.$refs.searchInput.value;
+            this.updateUrlParams('search', this.filters['search']);
         },
         /**
          * Load next page
          */
         loadNextPage() {
             this.page++;
-            this.fetchData();
+            this.fetchData('append', this.page);
         }
-    },
+    }
 }
 </script>
