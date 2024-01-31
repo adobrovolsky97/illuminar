@@ -2,6 +2,7 @@
 return [
     'enabled' => env('ILLUMINAR_ENABLED', true),
     'theme' => 'light', // 'light' or 'dark'
+    'dump_depth' => 2, // How many levels of array/object should be dumped
     'storage' => [
         'driver'   => 'file',
         'path'     => storage_path('illuminar'),

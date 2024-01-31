@@ -12,6 +12,19 @@ use Throwable;
 class PrimitiveArgumentFormatter
 {
     /**
+     * @var HtmlDumper
+     */
+    private HtmlDumper $dumper;
+
+    /**
+     * @param HtmlDumper $dumper
+     */
+    public function __construct(HtmlDumper $dumper)
+    {
+        $this->dumper = $dumper;
+    }
+
+    /**
      * Convert argument to primitive
      *
      * @param mixed $argument
@@ -40,8 +53,8 @@ class PrimitiveArgumentFormatter
                         'data' => serialize($argument)
                     ]
                     : [
-                        'type' => 'string',
-                        'data' => 'Object of class ' . get_class($argument) . ' is not serializable'
+                        'type' => 'html',
+                        'data' => $this->dumper->dump($argument)
                     ];
             }
 
@@ -58,28 +71,41 @@ class PrimitiveArgumentFormatter
      * Converting from primitive to original
      *
      * @param $payload
+     * @param bool $shouldNotDump
      * @return mixed
      */
-    public function convertFromPrimitive($payload)
+    public function convertFromPrimitive($payload, bool $shouldNotDump = false)
     {
         try {
             if (!isset($payload['type']) && is_array($payload)) {
-                return array_map(function ($item) {
-                    return $this->convertFromPrimitive($item);
+                $result = array_map(function ($item) {
+                    if (isset($item['type'])) {
+                        return $this->convertFromPrimitive($item, true);
+                    }
+                    return $item;
                 }, $payload);
+
+                return $shouldNotDump ? $result : $this->dumper->dump($result);
             }
 
             switch ($payload['type'] ?? '') {
+                case 'html':
+                    return $payload['data'];
                 case 'closure':
-                    return unserialize($payload['data'])->getClosure();
+                    $data = unserialize($payload['data'])->getClosure();
+                    break;
                 case 'object':
-                    return unserialize($payload['data']);
+                    $data = unserialize($payload['data']);
+                    break;
                 default:
-                    return is_array($payload) && array_key_exists('data', $payload) ? $payload['data'] : $payload;
+                    $data = is_array($payload) && array_key_exists('data', $payload) ? $payload['data'] : $payload;
+                    break;
             }
         } catch (Throwable $e) {
-            return null;
+            $data = null;
         }
+
+        return $shouldNotDump ? $data : $this->dumper->dump($data);
     }
 
     /**

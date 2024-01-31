@@ -157,3 +157,8 @@ export default {
     }
 }
 </script>
+<style>
+.hljs {
+    background: unset;
+}
+</style>

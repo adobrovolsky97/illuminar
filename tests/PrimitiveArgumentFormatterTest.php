@@ -73,8 +73,7 @@ class PrimitiveArgumentFormatterTest extends TestCase
     {
         $object = Mockery::mock('PDO');
         $result = $this->formatter->convertToPrimitive($object);
-        $this->assertEquals('string', $result['type']);
-        $this->assertEquals('Object of class ' . get_class($object) . ' is not serializable', $result['data']);
+        $this->assertEquals('html', $result['type']);
     }
 
     /**
@@ -85,7 +84,7 @@ class PrimitiveArgumentFormatterTest extends TestCase
         $result = $this->formatter->convertFromPrimitive([
             ['type' => 'string', 'data' => 'foo'],
             ['type' => 'string', 'data' => 'bar']
-        ]);
+        ], true);
         $this->assertEquals(['foo', 'bar'], $result);
     }
 
@@ -102,7 +101,7 @@ class PrimitiveArgumentFormatterTest extends TestCase
         $result = $this->formatter->convertFromPrimitive([
             'type' => 'closure',
             'data' => serialize($serializableClosure)
-        ]);
+        ], true);
         $this->assertInstanceOf(Closure::class, $result);
     }
 
@@ -115,7 +114,7 @@ class PrimitiveArgumentFormatterTest extends TestCase
         $result = $this->formatter->convertFromPrimitive([
             'type' => 'object',
             'data' => serialize($object)
-        ]);
+        ], true);
         $this->assertEquals($object, $result);
     }
 }

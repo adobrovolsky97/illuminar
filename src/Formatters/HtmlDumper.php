@@ -30,6 +30,7 @@ class HtmlDumper
         $this->cloner = $cloner;
 
         $this->dumper->setDumpHeader('');
+        $this->dumper->setDisplayOptions(['maxDepth' => config('illuminar.dump_depth', 2)]);
     }
 
     /**

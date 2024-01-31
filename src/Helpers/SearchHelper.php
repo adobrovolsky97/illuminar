@@ -46,7 +46,7 @@ class SearchHelper
 
                 $item['execution_time'] = ($filters['group_duplicated_queries'] ?? false) && $hashes[$item['hash']] > 1
                     ? $data->where('hash', $item['hash'])->sum('execution_time')
-                    : $item['execution_time'];
+                    : ($item['execution_time'] ?? 0);
 
                 $item['is_slow'] = ($filters['group_duplicated_queries'] ?? false) && $hashes[$item['hash']] > 1
                     ? false

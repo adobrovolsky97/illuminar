@@ -2,7 +2,6 @@
 
 namespace Adobrovolsky97\Illuminar\Http\Resources;
 
-use Adobrovolsky97\Illuminar\Formatters\HtmlDumper;
 use Adobrovolsky97\Illuminar\Formatters\PrimitiveArgumentFormatter;
 use Adobrovolsky97\Illuminar\Watchers\CacheWatcher;
 use Adobrovolsky97\Illuminar\Watchers\DumpWatcher;
@@ -33,8 +32,6 @@ class ItemResource extends JsonResource
     public function toArray($request): array
     {
         $argumentFormatter = app(PrimitiveArgumentFormatter::class);
-        $dumper = app(HtmlDumper::class);
-
         $rawBody = $this->getBodyForDisplay();
 
         return [
@@ -49,8 +46,8 @@ class ItemResource extends JsonResource
             'duplicates_count' => $this['duplicates_count'] ?? null,
             'content_hash'     => md5(json_encode($rawBody)),
             'tags'             => array_filter($this->getTagsForDisplay()),
-            'content'          => array_map(function ($item) use ($argumentFormatter, $dumper) {
-                return $dumper->dump($argumentFormatter->convertFromPrimitive($item));
+            'content'          => array_map(function ($item) use ($argumentFormatter) {
+                return $argumentFormatter->convertFromPrimitive($item);
             }, $rawBody)
         ];
     }
