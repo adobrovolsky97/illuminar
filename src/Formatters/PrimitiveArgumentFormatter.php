@@ -77,7 +77,7 @@ class PrimitiveArgumentFormatter
     public function convertFromPrimitive($payload, bool $shouldNotDump = false)
     {
         try {
-            if (!isset($payload['type']) && is_array($payload)) {
+            if ($this->isNestedArray($payload)) {
                 $result = array_map(function ($item) {
                     if (isset($item['type'])) {
                         return $this->convertFromPrimitive($item, true);
@@ -109,6 +109,19 @@ class PrimitiveArgumentFormatter
     }
 
     /**
+     * Check if array is nested
+     *
+     * @param array $array
+     * @return bool
+     */
+    private function isNestedArray(array $array): bool
+    {
+        return count($array) !== count($array, COUNT_RECURSIVE);
+    }
+
+    /**
+     * Check if argument is serializable
+     *
      * @param $argument
      * @return bool
      */
