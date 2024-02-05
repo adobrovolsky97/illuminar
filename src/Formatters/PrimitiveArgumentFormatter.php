@@ -79,7 +79,7 @@ class PrimitiveArgumentFormatter
         try {
             if ($this->isNestedArray($payload)) {
                 $result = array_map(function ($item) {
-                    if (isset($item['type'])) {
+                    if (isset($item['type']) || is_array($item)) {
                         return $this->convertFromPrimitive($item, true);
                     }
                     return $item;
