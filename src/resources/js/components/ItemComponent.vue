@@ -106,7 +106,16 @@ export default {
             this.$modal.show('preview-' + this.item.uuid)
         },
         formatSql(sql) {
-            return format(sql, {language: 'postgresql'});
+            const dialects = ['mysql', 'postgresql'];
+            for (let i = 0; i < dialects.length; i++) {
+                try {
+                    return format(sql, {language: dialects[i]});
+                } catch (e) {
+                    // continue to the next dialect
+                }
+            }
+            // if all dialects fail, return the original sql
+            return sql;
         },
         getMappedColor(type) {
             switch (type) {
