@@ -41,6 +41,7 @@ class QueryMacroPayload extends Payload
             'is_macro'   => true,
             'type'       => QueryWatcher::getName(),
             'caller'     => $this->getCaller(),
+            'time'       => now()->format('H:i:s')
         ];
     }
 }

@@ -106,7 +106,7 @@ export default {
             this.$modal.show('preview-' + this.item.uuid)
         },
         formatSql(sql) {
-            return format(sql);
+            return format(sql, {language: 'postgresql'});
         },
         getMappedColor(type) {
             switch (type) {
