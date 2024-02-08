@@ -58,7 +58,7 @@ class SearchHelper
 
         if ($filters['group_duplicated_queries'] ?? false) {
             $data = $data->unique(function ($item) {
-                return $item['type'] === QueryWatcher::getName() ? $item['hash'] : $item['uuid'];
+                return $item['type'] === QueryWatcher::getName() && !empty($item['hash']) ? $item['hash'] : $item['uuid'];
             });
         }
 
