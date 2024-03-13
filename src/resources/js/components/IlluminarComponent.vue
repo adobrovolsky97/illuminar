@@ -7,7 +7,7 @@
                 <div class="illuminar-content px-4 mx-auto lg:py-6 md:px-6">
                     <div class="flex flex-wrap mb-24">
                         <div class="w-full lg:w-1/4 lg:block">
-                            <div class="p-4 rounded-lg border shadow-lg border-gray-200">
+                            <div class="p-6 rounded-lg border shadow-lg border-gray-200">
                                 <h2 class="text-2xl font-bold">Types</h2>
                                 <ul class="mt-2">
                                     <li class="mb-4" v-for="(name, type) in dataTypes" :key="type">
@@ -22,7 +22,7 @@
                             </div>
 
                             <div v-if="filters['types[]'].includes('query')"
-                                 class="p-4 rounded-lg mt-4 border shadow-lg border-gray-200">
+                                 class="p-6 rounded-lg mt-4 border shadow-lg border-gray-200">
                                 <h2 class="text-2xl font-bold">Queries</h2>
                                 <ul class="mt-2">
                                     <li class="mb-4">
@@ -95,8 +95,8 @@
                                 <button
                                     v-if="hasMorePages"
                                     @click="loadNextPage"
-                                    class="bg-white hover:bg-gray-100 w-full font-semibold py-3 px-4 border rounded-lg shadow-lg">
-                                    Load more entries
+                                    class="w-full font-semibold py-3 px-4 border rounded-lg shadow-lg">
+                                    Load older entries
                                 </button>
                             </div>
                         </div>
