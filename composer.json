@@ -30,7 +30,7 @@
     "require": {
         "php": ">=7.4",
         "ext-json": "*",
-        "laravel/framework": "^8.37|^9.0|^10.0",
+        "laravel/framework": "^8.37|^9.0|^10.0|^11.0",
         "symfony/var-dumper": "^5.4|^6.0",
         "guzzlehttp/guzzle": "^7.0"
     },
