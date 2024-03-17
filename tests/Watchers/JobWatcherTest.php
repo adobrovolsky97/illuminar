@@ -52,7 +52,7 @@ class JobWatcherTest extends TestCase
 
         $this->assertNotEmpty($data);
         $this->assertEquals(JobWatcher::getName(), $data[0]['type']);
-        $this->assertEquals('queued', $data[0]['status']);
+        $this->assertEquals('pending', $data[0]['status']);
 
         $this->artisan('queue:work', [
             'connection' => 'database',

@@ -4,12 +4,7 @@ namespace Adobrovolsky97\Illuminar\Payloads;
 
 use Adobrovolsky97\Illuminar\Formatters\PrimitiveArgumentFormatter;
 use Adobrovolsky97\Illuminar\Watchers\JobWatcher;
-use Illuminate\Contracts\Queue\Job;
 use Illuminate\Queue\Events\JobFailed;
-use Illuminate\Queue\Events\JobProcessed;
-use Illuminate\Queue\Events\JobProcessing;
-use Illuminate\Queue\Events\JobQueued;
-use Throwable;
 
 /**
  * Class JobPayload
@@ -17,25 +12,25 @@ use Throwable;
 class JobPayload extends Payload
 {
     /**
-     * Event object
+     * Job Connection
      *
-     * @var object
+     * @var string
      */
-    private object $event;
+    protected string $connection;
 
     /**
-     * Job object
+     * Job Queue
      *
-     * @var object
+     * @var string|null
      */
-    private object $job;
+    protected ?string $queue;
 
     /**
-     * Exception object
+     * Job payload
      *
-     * @var Throwable|null
+     * @var array
      */
-    private ?Throwable $exception = null;
+    protected array $payload;
 
     /**
      * For job watcher we need to remove vendor path from backtrace to show original caller.
@@ -45,19 +40,15 @@ class JobPayload extends Payload
     protected array $callerPathsToRemove = ['vendor'];
 
     /**
-     * @param object $event
+     * @param string $connection
+     * @param string|null $queue
+     * @param array $payload
      */
-    public function __construct(object $event)
+    public function __construct(string $connection, ?string $queue, array $payload)
     {
-        $this->event = $event;
-
-        $this->job = $event->job instanceof Job
-            ? unserialize($event->job->payload()['data']['command'])
-            : $event->job;
-
-        if (property_exists($event, 'exception')) {
-            $this->exception = $event->exception ?? null;
-        }
+        $this->connection = $connection;
+        $this->queue = $queue;
+        $this->payload = $payload;
 
         parent::__construct();
     }
@@ -67,47 +58,42 @@ class JobPayload extends Payload
      */
     public function toArray(): array
     {
-        $argumentFormatter = app(PrimitiveArgumentFormatter::class);
+        $jobData = !isset($this->payload['data']['command'])
+            ? ($this->payload['data'] ?? [])
+            : ($this->payload['data']['command'] ?? []);
+
         return [
-            'type'      => JobWatcher::getName(),
-            'job_class' => get_class($this->job),
-            'uuid'      => $this->getUuid(),
-            'caller'    => $this->event instanceof JobQueued ? $this->getCaller() : null,
-            'status'    => $this->getStatusFromEvent(),
-            'queue'     => $this->job->queue ?? 'default',
-            'job'       => $this->job ? $argumentFormatter->convertToPrimitive($this->job) : null,
-            'exception' => $this->exception ? $argumentFormatter->convertToPrimitive($this->exception) : null,
-            'time'      => now()->format('H:i:s')
+            'type'       => JobWatcher::getName(),
+            'job_class'  => $this->getJobClass(),
+            'uuid'       => $this->getUuid(),
+            'caller'     => $this->getCaller(),
+            'status'     => 'pending',
+            'connection' => $this->connection,
+            'queue'      => $this->queue,
+            'tries'      => $this->payload['maxTries'] ?? 1,
+            'timeout'    => $this->payload['timeout'] ?? 10,
+            'job'        => app(PrimitiveArgumentFormatter::class)->convertToPrimitive($jobData),
+            'exception'  => null,
+            'time'       => now()->format('H:i:s')
         ];
     }
 
     /**
-     * Get uuid from event or generate new one.
+     * Get data for event
      *
-     * @return string
+     * @param object $event
+     * @return array
      */
-    public function getUuid(): string
+    public static function fromEvent(object $event): array
     {
-        return $this->getIlluminarUuid() ?? $this->uuid;
-    }
-
-    /**
-     * Extract uuid from job.
-     *
-     * @return string|null
-     */
-    public function getIlluminarUuid(): ?string
-    {
-        switch (true) {
-            case $this->event instanceof JobQueued:
-                return $this->event->payload()['illuminar_uuid'] ?? null;
-            case $this->event instanceof JobProcessing:
-            case $this->event instanceof JobProcessed:
-            case $this->event instanceof JobFailed:
-                return $this->event->job->payload()['illuminar_uuid'] ?? null;
-            default:
-                return null;
-        }
+        return [
+            'type'   => JobWatcher::getName(),
+            'status' => $event instanceof JobFailed ? 'failed' : 'processed',
+            'exception' => property_exists($event, 'exception')
+                ? app(PrimitiveArgumentFormatter::class)->convertToPrimitive($event->exception)
+                : null,
+            'time'   => now()->format('H:i:s')
+        ];
     }
 
     /**
@@ -115,27 +101,6 @@ class JobPayload extends Payload
      */
     public function getJobClass(): string
     {
-        return get_class($this->job);
-    }
-
-    /**
-     * Get status from event.
-     *
-     * @return string
-     */
-    private function getStatusFromEvent(): string
-    {
-        switch (true) {
-            case $this->event instanceof JobQueued:
-                return 'queued';
-            case $this->event instanceof JobProcessing:
-                return 'processing';
-            case $this->event instanceof JobProcessed:
-                return 'processed';
-            case $this->event instanceof JobFailed:
-                return 'failed';
-            default:
-                return 'unknown';
-        }
+        return $this->payload['displayName'] ?? 'unknown';
     }
 }
