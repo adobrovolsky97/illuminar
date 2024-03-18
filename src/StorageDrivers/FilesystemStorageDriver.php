@@ -84,7 +84,7 @@ class FilesystemStorageDriver implements StorageDriverInterface
             return [];
         }
 
-        return json_decode($this->filesystem->get($this->getFilePath()), true);
+        return json_decode($this->filesystem->get($this->getFilePath()), true) ?? [];
     }
 
     /**
