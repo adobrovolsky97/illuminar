@@ -7,10 +7,8 @@ use Adobrovolsky97\Illuminar\Watchers\JobWatcher;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\Events\JobQueued;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Str;
 use Adobrovolsky97\Illuminar\Tests\TestCase;
 
 /**
@@ -31,12 +29,7 @@ class JobPayloadTest extends TestCase
             }
         };
 
-        $event = new JobQueued(
-            'job',
-            'queue',
-            $job,
-            json_encode(['key' => 'value', 'illuminar_uuid' => Str::uuid()]));
-        $payload = new JobPayload($event);
+        $payload = new JobPayload('connection', 'queueName', ['displayName' => get_class($job)]);
 
         $result = $payload->toArray();
 
@@ -54,8 +47,8 @@ class JobPayloadTest extends TestCase
         $this->assertEquals(JobWatcher::getName(), $result['type']);
         $this->assertEquals(get_class($job), $result['job_class']);
         $this->assertNotNull($result['uuid']);
-        $this->assertEquals('queued', $result['status']);
-        $this->assertEquals('default', $result['queue']);
+        $this->assertEquals('pending', $result['status']);
+        $this->assertEquals('queueName', $result['queue']);
         $this->assertNotNull($result['job']);
         $this->assertNull($result['exception']);
         $this->assertNotNull($result['time']);
