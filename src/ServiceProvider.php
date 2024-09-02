@@ -22,7 +22,7 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
 
         $this->mergeConfigFrom(__DIR__ . '/config/illuminar.php', 'illuminar');
         $this->loadRoutesFrom(__DIR__ . '/routes/illuminar.php');
-        $this->loadViewsFrom(__DIR__ . '/Resources/views', 'illuminar');
+        $this->loadViewsFrom(__DIR__ . '/resources/views', 'illuminar');
 
         $this->registerBladeDirectives();
         $this->registerMacros();
