@@ -3,10 +3,6 @@
 namespace Adobrovolsky97\Illuminar\Tests;
 
 use Adobrovolsky97\Illuminar\Formatters\PrimitiveArgumentFormatter;
-use Closure;
-use Laravel\SerializableClosure\Exceptions\PhpVersionNotSupportedException;
-use Laravel\SerializableClosure\SerializableClosure;
-use Mockery;
 use stdClass;
 
 /**
@@ -14,107 +10,55 @@ use stdClass;
  */
 class PrimitiveArgumentFormatterTest extends TestCase
 {
-    /**
-     * @var PrimitiveArgumentFormatter
-     */
     private PrimitiveArgumentFormatter $formatter;
 
-    /**
-     * @return void
-     */
-    public function setUp(): void
+    protected function setUp(): void
     {
         parent::setUp();
 
         $this->formatter = app(PrimitiveArgumentFormatter::class);
     }
 
-    /**
-     * @return void
-     */
-    public function testConvertArray(): void
+    public function testScalarsAreStoredAsIs(): void
     {
-        $result = $this->formatter->convertToPrimitive(['foo', 'bar']);
-
-        $this->assertEquals([
-            ['type' => 'string', 'data' => 'foo'],
-            ['type' => 'string', 'data' => 'bar']
-        ], $result);
+        $this->assertSame(['type' => 'string', 'data' => 'foo'], $this->formatter->convertToPrimitive('foo'));
+        $this->assertSame(['type' => 'double', 'data' => 1.5], $this->formatter->convertToPrimitive(1.5));
+        $this->assertSame(['type' => 'NULL', 'data' => null], $this->formatter->convertToPrimitive(null));
     }
 
-    /**
-     * @return void
-     */
-    public function testConvertClosure(): void
-    {
-        $closure = function () {
-            return 'illuminar is the best';
-        };
-        $result = $this->formatter->convertToPrimitive($closure);
-        $this->assertEquals('closure', $result['type']);
-        $this->assertInstanceOf(SerializableClosure::class, unserialize($result['data']));
-    }
-
-    /**
-     * @return void
-     */
-    public function testConvertSerializableObject()
+    public function testArraysObjectsAndClosuresAreRenderedToHtml(): void
     {
         $object = new stdClass();
-        $result = $this->formatter->convertToPrimitive($object);
-        $this->assertEquals('object', $result['type']);
-        $this->assertEquals($object, unserialize($result['data']));
+        $object->foo = 'bar';
+
+        foreach ([['foo', 'bar'], $object, function () {
+        }, new \PDO('sqlite::memory:')] as $value) {
+            $result = $this->formatter->convertToPrimitive($value);
+
+            $this->assertSame('html', $result['type']);
+            $this->assertStringContainsString('sf-dump', $result['data']);
+        }
     }
 
-    /**
-     * @return void
-     */
-    public function testConvertNonSerializableObject(): void
+    public function testConvertFromPrimitive(): void
     {
-        $object = Mockery::mock('PDO');
-        $result = $this->formatter->convertToPrimitive($object);
-        $this->assertEquals('html', $result['type']);
+        $this->assertSame('<b>x</b>', $this->formatter->convertFromPrimitive(['type' => 'html', 'data' => '<b>x</b>']));
+        $this->assertStringContainsString('foo', $this->formatter->convertFromPrimitive(['type' => 'string', 'data' => 'foo']));
+        $this->assertStringContainsString('nested', $this->formatter->convertFromPrimitive(['key' => ['nested' => 1]]));
     }
 
-    /**
-     * @return void
-     */
-    public function testConvertFromPrimitiveWithArray(): void
+    public function testStoredSerializedDataIsNeverUnserialized(): void
     {
-        $result = $this->formatter->convertFromPrimitive([
-            ['type' => 'string', 'data' => 'foo'],
-            ['type' => 'string', 'data' => 'bar']
-        ], true);
-        $this->assertEquals(['foo', 'bar'], $result);
+        $result = $this->formatter->convertFromPrimitive(['type' => 'object', 'data' => serialize(new stdClass())]);
+
+        $this->assertStringContainsString('older Illuminar version', $result);
     }
 
-    /**
-     * @return void
-     * @throws PhpVersionNotSupportedException
-     */
-    public function testConvertFromPrimitiveWithClosure(): void
+    public function testUserArrayWithTypeKeyIsNotTreatedAsHtml(): void
     {
-        $closure = function () {
-            return 'illuminar is the best';
-        };
-        $serializableClosure = new SerializableClosure($closure);
-        $result = $this->formatter->convertFromPrimitive([
-            'type' => 'closure',
-            'data' => serialize($serializableClosure)
-        ], true);
-        $this->assertInstanceOf(Closure::class, $result);
-    }
+        // user data that looks like a stored primitive must be escaped
+        $result = $this->formatter->convertFromPrimitive($this->formatter->convertToPrimitive(['type' => 'html', 'data' => '<img src=x onerror=alert(1)>']));
 
-    /**
-     * @return void
-     */
-    public function testConvertFromPrimitiveWithObject(): void
-    {
-        $object = new stdClass();
-        $result = $this->formatter->convertFromPrimitive([
-            'type' => 'object',
-            'data' => serialize($object)
-        ], true);
-        $this->assertEquals($object, $result);
+        $this->assertStringNotContainsString('<img', $result);
     }
 }

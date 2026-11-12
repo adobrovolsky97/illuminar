@@ -60,4 +60,42 @@ class HttpRequestWatcherTest extends TestCase
         $this->assertNotEmpty($data);
         $this->assertEquals(HttpRequestWatcher::getName(), $data[0]['type']);
     }
+
+    public function testSensitiveHeadersAreHiddenAndBodyIsTruncated(): void
+    {
+        config(['illuminar.http.max_body_size' => 1]);
+        illuminar()->trackHttpRequests();
+
+        Http::fake(['*' => Http::response(str_repeat('a', 5000), 200, ['Set-Cookie' => 'session=secret'])]);
+
+        Http::withToken('secret-token')->get('https://test.com');
+
+        $entry = StorageDriverFactory::getDriverForConfig()->getData()[0];
+
+        $this->assertSame('********', $entry['request']['headers']['Authorization']);
+        $this->assertSame('********', $entry['response']['headers']['Set-Cookie']);
+        $this->assertStringContainsString('[truncated, 5000 bytes total]', $entry['response']['body']);
+    }
+
+    public function testFailedConnectionIsTracked(): void
+    {
+        if (!method_exists(\Illuminate\Http\Client\Factory::class, 'failedConnection')) {
+            $this->markTestSkipped('Http::failedConnection() is not available in this Laravel version.');
+        }
+
+        illuminar()->trackHttpRequests();
+
+        Http::fake(['*' => Http::failedConnection('Could not resolve host')]);
+
+        try {
+            Http::get('https://unknown.test');
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+        }
+
+        $entry = StorageDriverFactory::getDriverForConfig()->getData()[0] ?? null;
+
+        $this->assertNotNull($entry);
+        $this->assertTrue($entry['failed']);
+        $this->assertNull($entry['status_code']);
+    }
 }

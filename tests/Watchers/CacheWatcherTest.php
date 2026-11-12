@@ -24,10 +24,10 @@ class CacheWatcherTest extends TestCase
     public function testEvents(): void
     {
         $events = [
-            new CacheHit('test', 'value'),
-            new CacheMissed('test'),
-            new KeyWritten('test', 'value'),
-            new KeyForgotten('test'),
+            $this->cacheEvent(CacheHit::class, 'test', 'value'),
+            $this->cacheEvent(CacheMissed::class, 'test'),
+            $this->cacheEvent(KeyWritten::class, 'test', 'value'),
+            $this->cacheEvent(KeyForgotten::class, 'test'),
         ];
 
         foreach ($events as $event) {

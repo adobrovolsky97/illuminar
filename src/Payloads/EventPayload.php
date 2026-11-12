@@ -2,7 +2,6 @@
 
 namespace Adobrovolsky97\Illuminar\Payloads;
 
-use Adobrovolsky97\Illuminar\Formatters\PrimitiveArgumentFormatter;
 use Adobrovolsky97\Illuminar\Watchers\EventWatcher;
 
 /**
@@ -10,24 +9,15 @@ use Adobrovolsky97\Illuminar\Watchers\EventWatcher;
  */
 class EventPayload extends Payload
 {
-    /**
-     * Event name
-     *
-     * @var string
-     */
     private string $eventName;
 
     /**
-     * Event object itself
+     * Event object itself or event arguments for string events
      *
      * @var mixed
      */
     private $event;
 
-    /**
-     * @param string $eventName
-     * @param array $arguments
-     */
     public function __construct(string $eventName, array $arguments = [])
     {
         $this->eventName = $eventName;
@@ -39,20 +29,11 @@ class EventPayload extends Payload
         parent::__construct();
     }
 
-    /**
-     * @return array
-     */
     public function toArray(): array
     {
-        return [
-            'uuid'       => $this->getUuid(),
-            'type'       => EventWatcher::getName(),
+        return array_merge($this->baseFields(EventWatcher::getName()), [
             'event_name' => $this->eventName,
-            'event'      => $this->event
-                ? app(PrimitiveArgumentFormatter::class)->convertToPrimitive($this->event)
-                : null,
-            'caller'     => $this->getCaller(),
-            'time'       => now()->format('H:i:s'),
-        ];
+            'event'      => $this->event !== [] && $this->event !== null ? $this->format($this->event) : null,
+        ]);
     }
 }

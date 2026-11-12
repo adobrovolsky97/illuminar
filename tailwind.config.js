@@ -1,18 +1,11 @@
-module.exports = {
-    purge: {
-        mode: 'layers',
-        content: [
-            "./src/resources/**/*.blade.php",
-            "./src/resources/**/*.{vue,js,ts,jsx,tsx}",
-        ],
-        options: {
-            safelist: ['dark']
-        }
-    },
+/** @type {import('tailwindcss').Config} */
+export default {
+    content: [
+        './src/resources/**/*.blade.php',
+        './src/resources/**/*.{vue,js}',
+    ],
     darkMode: 'class',
     theme: {
-    },
-    variants: {
         extend: {},
     },
     plugins: [],

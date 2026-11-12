@@ -12,6 +12,7 @@ use Illuminate\Database\Connection;
 /**
  * Class QueryMacroPayloadTest
  */
+#[\PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations]
 class QueryMacroPayloadTest extends TestCase
 {
     /**

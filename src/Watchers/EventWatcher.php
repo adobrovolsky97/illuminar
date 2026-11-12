@@ -12,55 +12,41 @@ use Illuminate\Support\Str;
  */
 class EventWatcher extends Watcher
 {
-    /**
-     * @return string
-     */
+    private const FRAMEWORK_EVENTS = [
+        'Illuminate\*',
+        'Laravel\Octane\*',
+        'Laravel\Scout\Events\ModelsImported',
+        'eloquent*',
+        'bootstrapped*',
+        'bootstrapping*',
+        'creating*',
+        'composing*',
+    ];
+
     public static function getName(): string
     {
         return 'event';
     }
 
-    /**
-     * @return void
-     */
     protected function initialize(): void
     {
         Event::listen('*', function (string $eventName, array $arguments) {
-            if (!$this->enabled) {
+            if (!$this->enabled || $this->shouldBeIgnored($eventName)) {
                 return;
             }
 
-            if ($this->shouldBeIgnored($eventName)) {
-                return;
-            }
-
-            $this->storageDriver->saveEntry((new EventPayload($eventName, $arguments))->toArray());
+            $this->record(function () use ($eventName, $arguments) {
+                return new EventPayload($eventName, $arguments);
+            });
         });
     }
 
-    /**
-     * Check if event should be ignored
-     *
-     * @param string $eventName
-     * @return bool
-     */
     protected function shouldBeIgnored(string $eventName): bool
     {
         return Str::is(
             array_merge(
-                (config('illuminar.events.ignore_framework_events', true)
-                    ? [
-                        'Illuminate\*',
-                        'Laravel\Octane\*',
-                        'Laravel\Scout\Events\ModelsImported',
-                        'eloquent*',
-                        'bootstrapped*',
-                        'bootstrapping*',
-                        'creating*',
-                        'composing*',
-                    ]
-                    : []),
-                config('illuminar.events.ignored_events', []),
+                config('illuminar.events.ignore_framework_events', true) ? self::FRAMEWORK_EVENTS : [],
+                (array)config('illuminar.events.ignored_events', []),
                 [SlowQueryFound::class]
             ),
             $eventName

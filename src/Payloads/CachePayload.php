@@ -2,7 +2,6 @@
 
 namespace Adobrovolsky97\Illuminar\Payloads;
 
-use Adobrovolsky97\Illuminar\Formatters\PrimitiveArgumentFormatter;
 use Adobrovolsky97\Illuminar\Watchers\CacheWatcher;
 use Illuminate\Cache\Events\CacheHit;
 use Illuminate\Cache\Events\CacheMissed;
@@ -14,16 +13,8 @@ use Illuminate\Cache\Events\KeyWritten;
  */
 class CachePayload extends Payload
 {
-    /**
-     * Cache event
-     *
-     * @var object
-     */
     private object $event;
 
-    /**
-     * @param object $event
-     */
     public function __construct(object $event)
     {
         $this->event = $event;
@@ -31,29 +22,20 @@ class CachePayload extends Payload
         parent::__construct();
     }
 
-    /**
-     * @return array
-     */
     public function toArray(): array
     {
-        return [
-            'uuid'   => $this->getUuid(),
-            'type'   => CacheWatcher::getName(),
-            'caller' => $this->getCaller(),
-            'event'  => $this->getEventFromEventClass(),
-            'key'    => $this->event->key,
-            'tags'   => $this->event->tags ?? [],
-            'value'  => !empty($this->event->value)
-                ? app(PrimitiveArgumentFormatter::class)->convertToPrimitive($this->event->value)
-                : null,
-            'time'   => now()->format('H:i:s'),
-        ];
+        return array_merge($this->baseFields(CacheWatcher::getName()), [
+            'event' => $this->getEventFromEventClass(),
+            'key'   => $this->event->key ?? null,
+            'store' => $this->event->storeName ?? null,
+            'tags'  => $this->event->tags ?? [],
+            'ttl'   => $this->event->seconds ?? null,
+            'value' => property_exists($this->event, 'value') ? $this->format($this->event->value) : null,
+        ]);
     }
 
     /**
      * Mapping event class to name for display
-     *
-     * @return string
      */
     private function getEventFromEventClass(): string
     {

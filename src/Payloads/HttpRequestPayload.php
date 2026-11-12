@@ -3,80 +3,153 @@
 namespace Adobrovolsky97\Illuminar\Payloads;
 
 use Adobrovolsky97\Illuminar\Watchers\HttpRequestWatcher;
+use Illuminate\Http\Client\Events\ConnectionFailed;
 use Illuminate\Http\Client\Events\ResponseReceived;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * Class HttpRequestPayload
  */
 class HttpRequestPayload extends Payload
 {
-    /**
-     * @var ResponseReceived
-     */
-    private ResponseReceived $event;
+    private const HIDDEN_VALUE = '********';
 
     /**
-     * @param ResponseReceived $event
+     * @var ResponseReceived|ConnectionFailed
      */
-    public function __construct(ResponseReceived $event)
+    private object $event;
+
+    /**
+     * @param ResponseReceived|ConnectionFailed $event
+     */
+    public function __construct(object $event)
     {
         $this->event = $event;
 
         parent::__construct();
     }
 
-    /**
-     * @return array
-     */
     public function toArray(): array
     {
-        return [
-            'uuid'        => $this->getUuid(),
-            'type'        => HttpRequestWatcher::getName(),
-            'time'        => now()->format('H:i:s'),
-            'caller'      => $this->getCaller(),
-            'url'         => $this->event->request->url(),
-            'method'      => $this->event->request->method(),
-            'status_code' => $this->event->response->status(),
+        $request = $this->event->request;
+        $response = $this->event instanceof ResponseReceived ? $this->event->response : null;
+
+        return array_merge($this->baseFields(HttpRequestWatcher::getName()), [
+            'url'         => $request->url(),
+            'method'      => $request->method(),
+            'status_code' => $response ? $response->status() : null,
+            'failed'      => $response === null,
+            'duration'    => $response ? $this->getDuration($response) : null,
             'request'     => [
-                'body'    => $this->event->request->body(),
-                'headers' => $this->event->request->headers(),
-                'data'    => $this->event->request->data(),
+                'headers' => $this->hideHeaders($request->headers()),
+                'body'    => $this->truncate($this->safe(function () use ($request) {
+                    return $request->body();
+                })),
+                'data'    => $this->safe(function () use ($request) {
+                    return $request->data();
+                }),
             ],
-            'response'    => [
-                'status'   => $this->event->response->status(),
-                'body'     => $this->getResponse(),
-                'headers'  => $this->event->response->headers(),
-                'duration' => $this->event->response->handlerStats()['total_time'] ?? null,
-            ],
-        ];
+            'response'    => $response
+                ? [
+                    'status'   => $response->status(),
+                    'headers'  => $this->hideHeaders($response->headers()),
+                    'body'     => $this->getResponseBody($response),
+                    'duration' => $this->getDuration($response),
+                ]
+                : [
+                    'error' => $this->getConnectionError(),
+                ],
+        ]);
     }
 
     /**
-     * Process response body
-     *
-     * @return mixed|string
+     * Duration in milliseconds
      */
-    private function getResponse()
+    private function getDuration(Response $response): ?float
     {
-        $content = $this->event->response->body();
+        $seconds = $this->safe(function () use ($response) {
+            return $response->handlerStats()['total_time'] ?? null;
+        });
 
-        if (is_string($content)) {
-            if (is_array($decodedContent = json_decode($content, true)) &&
-                json_last_error() === JSON_ERROR_NONE) {
-                return $decodedContent;
-            }
+        return is_numeric($seconds) ? round($seconds * 1000, 2) : null;
+    }
 
-            if (Str::startsWith(strtolower($this->event->response->header('Content-Type') ?? ''), 'text/plain')) {
-                return $content;
+    /**
+     * @return mixed
+     */
+    private function getResponseBody(Response $response)
+    {
+        $content = $response->body();
+
+        if ($content !== '' && is_array($decoded = json_decode($content, true))) {
+            return $decoded;
+        }
+
+        if ($response->redirect()) {
+            return 'Redirected to ' . $response->header('Location');
+        }
+
+        if ($content === '') {
+            return 'Empty Response';
+        }
+
+        return $this->truncate($content);
+    }
+
+    private function getConnectionError(): string
+    {
+        $exception = $this->event->exception ?? null;
+
+        return $exception instanceof Throwable
+            ? get_class($exception) . ': ' . $exception->getMessage()
+            : 'Connection failed';
+    }
+
+    /**
+     * @param mixed $content
+     * @return mixed
+     */
+    private function truncate($content)
+    {
+        if (!is_string($content)) {
+            return $content;
+        }
+
+        if (!mb_check_encoding($content, 'UTF-8')) {
+            return '[binary data, ' . strlen($content) . ' bytes]';
+        }
+
+        $limit = (int)config('illuminar.http.max_body_size', 64) * 1024;
+
+        return strlen($content) > $limit
+            ? mb_strcut($content, 0, $limit) . "\n... [truncated, " . strlen($content) . ' bytes total]'
+            : $content;
+    }
+
+    private function hideHeaders(array $headers): array
+    {
+        $hidden = array_map('strtolower', (array)config('illuminar.http.hidden_headers', []));
+
+        foreach ($headers as $name => $value) {
+            if (in_array(strtolower((string)$name), $hidden, true)) {
+                $headers[$name] = self::HIDDEN_VALUE;
             }
         }
 
-        if ($this->event->response->redirect()) {
-            return 'Redirected to ' . $this->event->response->header('Location');
-        }
+        return $headers;
+    }
 
-        return $content ?: 'Empty Response';
+    /**
+     * @return mixed
+     */
+    private function safe(callable $callback)
+    {
+        try {
+            return $callback();
+        } catch (Throwable $e) {
+            return null;
+        }
     }
 }

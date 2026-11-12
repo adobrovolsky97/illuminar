@@ -3,7 +3,6 @@
 namespace Adobrovolsky97\Illuminar\Watchers;
 
 use Adobrovolsky97\Illuminar\Payloads\QueryPayload;
-use Adobrovolsky97\Illuminar\Traits\HasBacktrace;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
@@ -13,43 +12,46 @@ use Illuminate\Support\Str;
  */
 class QueryWatcher extends Watcher
 {
-    use HasBacktrace;
-
-    /**
-     * @return string
-     */
     public static function getName(): string
     {
         return 'query';
     }
 
-    /**
-     * @return void
-     */
+    public static function isSlow(QueryExecuted $event): bool
+    {
+        return $event->time >= (float)config('illuminar.queries.slow_time_ms', 500);
+    }
+
     protected function initialize(): void
     {
-        Event::listen(QueryExecuted::class, function (QueryExecuted $query) {
-
+        Event::listen(QueryExecuted::class, function (QueryExecuted $event) {
             if (!$this->enabled) {
                 return;
             }
 
-            $caller = $this->getCallerFromStackTrace();
-
-            if (!empty($caller) && !$this->shouldIgnoreQuery($caller['file'])) {
-                $this->storageDriver->saveEntry((new QueryPayload($query, $caller))->toArray());
-            }
+            $this->record(function () use ($event) {
+                return $this->makePayload($event);
+            });
         });
     }
 
     /**
-     * Check if query should be ignored
-     *
-     * @param string $caller
-     * @return bool
+     * Payload for query or null if the query must be ignored
      */
+    protected function makePayload(QueryExecuted $event): ?QueryPayload
+    {
+        $payload = new QueryPayload($event);
+        $caller = $payload->getCallerFrame();
+
+        if (empty($caller['file']) || $this->shouldIgnoreQuery($caller['file'])) {
+            return null;
+        }
+
+        return $payload;
+    }
+
     protected function shouldIgnoreQuery(string $caller): bool
     {
-        return Str::contains($caller, config('illuminar.queries.ignored_paths', []));
+        return Str::contains(str_replace('\\', '/', $caller), config('illuminar.queries.ignored_paths', []));
     }
 }

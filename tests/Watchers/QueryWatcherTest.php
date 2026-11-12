@@ -195,4 +195,43 @@ class QueryWatcherTest extends TestCase
             $table->softDeletes();
         });
     }
+
+    public function testSlowQueryIsNotStoredTwiceWhenAllQueriesAreTracked(): void
+    {
+        config(['illuminar.queries.slow_time_ms' => 0]);
+        illuminar()->trackQueries()->trackSlowQueries();
+
+        DB::select('select 1');
+
+        $data = StorageDriverFactory::getDriverForConfig()->getData();
+
+        $this->assertCount(1, $data);
+        $this->assertTrue($data[0]['is_slow']);
+    }
+
+    public function testSlowQueryWatcherDispatchesEvent(): void
+    {
+        config(['illuminar.queries.slow_time_ms' => 0]);
+        illuminar()->trackSlowQueries();
+
+        $found = [];
+        \Illuminate\Support\Facades\Event::listen(\Adobrovolsky97\Illuminar\Events\SlowQueryFound::class, function ($event) use (&$found) {
+            $found[] = $event->query->sql;
+        });
+
+        DB::select('select 1');
+
+        $this->assertSame(['select 1'], $found);
+        $this->assertCount(1, StorageDriverFactory::getDriverForConfig()->getData());
+    }
+
+    public function testQueryWithQuestionMarkInStringDoesNotBreakApplication(): void
+    {
+        illuminar()->trackQueries();
+
+        $result = DB::select("select '?' as q, ? as v", [5]);
+
+        $this->assertSame(5, (int)$result[0]->v);
+        $this->assertSame("select '?' as q, 5 as v", StorageDriverFactory::getDriverForConfig()->getData()[0]['sql']);
+    }
 }

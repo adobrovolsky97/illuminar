@@ -6,6 +6,7 @@ use Adobrovolsky97\Illuminar\Traits\SubstituteBindings;
 use Adobrovolsky97\Illuminar\Watchers\QueryWatcher;
 use Illuminate\Contracts\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Eloquent\Relations\Relation;
 
 /**
  * Class QueryMacroPayload
@@ -15,12 +16,12 @@ class QueryMacroPayload extends Payload
     use SubstituteBindings;
 
     /**
-     * @var EloquentBuilder|QueryBuilder
+     * @var EloquentBuilder|QueryBuilder|Relation
      */
     private $builder;
 
     /**
-     * @param EloquentBuilder|QueryBuilder $builder
+     * @param EloquentBuilder|QueryBuilder|Relation $builder
      */
     public function __construct($builder)
     {
@@ -29,19 +30,12 @@ class QueryMacroPayload extends Payload
         parent::__construct();
     }
 
-    /**
-     * @return array
-     */
     public function toArray(): array
     {
-        return [
-            'uuid'       => $this->getUuid(),
+        return array_merge($this->baseFields(QueryWatcher::getName()), [
             'sql'        => $this->replaceBindings($this->builder->toSql(), $this->builder->getBindings()),
             'connection' => $this->builder->getConnection()->getName(),
             'is_macro'   => true,
-            'type'       => QueryWatcher::getName(),
-            'caller'     => $this->getCaller(),
-            'time'       => now()->format('H:i:s')
-        ];
+        ]);
     }
 }

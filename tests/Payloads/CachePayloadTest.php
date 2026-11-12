@@ -21,7 +21,7 @@ class CachePayloadTest extends TestCase
      */
     public function testCacheHitEvent(): void
     {
-        $event = new CacheHit('cache_key', 'cache_value', ['tag1', 'tag2']);
+        $event = $this->cacheEvent(CacheHit::class, 'cache_key', 'cache_value', ['tag1', 'tag2']);
         $payload = new CachePayload($event);
 
         $result = $payload->toArray();
@@ -40,7 +40,7 @@ class CachePayloadTest extends TestCase
      */
     public function testCacheMissedEvent(): void
     {
-        $event = new CacheMissed('cache_key', ['tag1', 'tag2']);
+        $event = $this->cacheEvent(CacheMissed::class, 'cache_key', ['tag1', 'tag2']);
         $payload = new CachePayload($event);
 
         $result = $payload->toArray();
@@ -59,7 +59,7 @@ class CachePayloadTest extends TestCase
      */
     public function testKeyWrittenEvent(): void
     {
-        $event = new KeyWritten('cache_key', 'cache_value', 60, ['tag1', 'tag2']);
+        $event = $this->cacheEvent(KeyWritten::class, 'cache_key', 'cache_value', 60, ['tag1', 'tag2']);
         $payload = new CachePayload($event);
 
         $result = $payload->toArray();
@@ -78,7 +78,7 @@ class CachePayloadTest extends TestCase
      */
     public function testKeyForgottenEvent(): void
     {
-        $event = new KeyForgotten('cache_key', ['tag1', 'tag2']);
+        $event = $this->cacheEvent(KeyForgotten::class, 'cache_key', ['tag1', 'tag2']);
         $payload = new CachePayload($event);
 
         $result = $payload->toArray();

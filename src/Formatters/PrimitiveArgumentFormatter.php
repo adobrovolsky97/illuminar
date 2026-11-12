@@ -2,137 +2,77 @@
 
 namespace Adobrovolsky97\Illuminar\Formatters;
 
-use Closure;
-use Laravel\SerializableClosure\SerializableClosure;
 use Throwable;
 
 /**
- * Class PrimitiveArgumentFormatter
+ * Converts values to a storable representation.
+ *
+ * Objects, closures and arrays are rendered to an HTML dump at capture time, so the UI never
+ * needs to unserialize() data from the storage (which was slow, could fail when classes change
+ * and allowed PHP object injection). Scalars are stored as is.
  */
 class PrimitiveArgumentFormatter
 {
-    /**
-     * @var HtmlDumper
-     */
     private HtmlDumper $dumper;
 
-    /**
-     * @param HtmlDumper $dumper
-     */
     public function __construct(HtmlDumper $dumper)
     {
         $this->dumper = $dumper;
     }
 
     /**
-     * Convert argument to primitive
+     * Convert argument to storable primitive
      *
      * @param mixed $argument
-     * @return array
+     * @return array{type: string, data: mixed}
      */
     public function convertToPrimitive($argument): array
     {
-        try {
-            if (is_array($argument)) {
-                return array_map(function ($item) {
-                    return $this->convertToPrimitive($item);
-                }, $argument);
-            }
-
-            if ($argument instanceof Closure) {
-                return [
-                    'type' => 'closure',
-                    'data' => serialize(new SerializableClosure($argument))
-                ];
-            }
-
-            if (is_object($argument)) {
-                return $this->isSerializable($argument)
-                    ? [
-                        'type' => 'object',
-                        'data' => serialize($argument)
-                    ]
-                    : [
-                        'type' => 'html',
-                        'data' => $this->dumper->dump($argument)
-                    ];
-            }
-
+        if (is_null($argument) || is_scalar($argument)) {
             return [
                 'type' => gettype($argument),
-                'data' => $argument
+                'data' => $argument,
+            ];
+        }
+
+        try {
+            return [
+                'type' => 'html',
+                'data' => $this->dumper->dump($argument),
             ];
         } catch (Throwable $e) {
-            return [];
+            return [
+                'type' => 'html',
+                'data' => $this->dumper->dump('Illuminar: unable to dump value: ' . $e->getMessage()),
+            ];
         }
     }
 
     /**
-     * Converting from primitive to original
+     * Convert stored primitive to HTML for display
      *
-     * @param $payload
-     * @param bool $shouldNotDump
-     * @return mixed
+     * @param mixed $payload
+     * @return string
      */
-    public function convertFromPrimitive($payload, bool $shouldNotDump = false)
+    public function convertFromPrimitive($payload): string
     {
         try {
-            if ($this->isNestedArray($payload)) {
-                $result = array_map(function ($item) {
-                    if (isset($item['type']) || is_array($item)) {
-                        return $this->convertFromPrimitive($item, true);
-                    }
-                    return $item;
-                }, $payload);
+            if (is_array($payload) && isset($payload['type']) && array_key_exists('data', $payload) && count($payload) === 2) {
+                if ($payload['type'] === 'html') {
+                    return (string)$payload['data'];
+                }
 
-                return $shouldNotDump ? $result : $this->dumper->dump($result);
+                // Never unserialize stored data
+                if (in_array($payload['type'], ['object', 'closure'], true)) {
+                    return $this->dumper->dump('Entry was stored by an older Illuminar version, please clear the data.');
+                }
+
+                return $this->dumper->dump($payload['data']);
             }
 
-            switch ($payload['type'] ?? '') {
-                case 'html':
-                    return $payload['data'];
-                case 'closure':
-                    $data = unserialize($payload['data'])->getClosure();
-                    break;
-                case 'object':
-                    $data = unserialize($payload['data']);
-                    break;
-                default:
-                    $data = is_array($payload) && array_key_exists('data', $payload) ? $payload['data'] : $payload;
-                    break;
-            }
+            return $this->dumper->dump($payload);
         } catch (Throwable $e) {
-            $data = null;
+            return '';
         }
-
-        return $shouldNotDump ? $data : $this->dumper->dump($data);
-    }
-
-    /**
-     * Check if array is nested
-     *
-     * @param array $array
-     * @return bool
-     */
-    private function isNestedArray(array $array): bool
-    {
-        return count($array) !== count($array, COUNT_RECURSIVE);
-    }
-
-    /**
-     * Check if argument is serializable
-     *
-     * @param $argument
-     * @return bool
-     */
-    private function isSerializable($argument): bool
-    {
-        try {
-            serialize($argument);
-        } catch (Throwable $e) {
-            return false;
-        }
-
-        return true;
     }
 }

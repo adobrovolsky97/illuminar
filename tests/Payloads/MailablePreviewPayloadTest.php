@@ -20,7 +20,7 @@ class MailablePreviewPayloadTest extends TestCase
      */
     public function testToArray(): void
     {
-        $mailable = $this->createMock(Mailable::class);
+        $mailable = $this->createStub(Mailable::class);
         $mailable->method('render')->willReturn('html content');
 
         $payload = new MailablePreviewPayload($mailable);

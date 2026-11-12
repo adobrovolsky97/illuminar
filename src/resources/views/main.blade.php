@@ -1,26 +1,32 @@
 <!DOCTYPE html>
-<html lang="en" class="{{config('illuminar.theme', 'light')}}">
+<html lang="en" class="{{ config('illuminar.theme', 'dark') === 'dark' ? 'dark' : '' }}">
 <head>
-    <!-- Meta Information -->
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="shortcut icon" href="{{ asset('/vendor/illuminar/favicon.ico') }}">
-
     <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="{{ route('illuminar.asset', ['file' => 'favicon.ico']) }}">
 
     <title>Illuminar{{ config('app.name') ? ' - ' . config('app.name') : '' }}</title>
 
-    <!-- Style sheets-->
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=figtree:300,400,500,600" rel="stylesheet"/>
-    <link href="{{ asset(mix('app.css', 'vendor/illuminar')) }}" rel="stylesheet" type="text/css">
-</head>
-<body>
-<div id="illuminar">
-    <illuminar></illuminar>
-</div>
-<script src="{{ asset(mix('app.js', 'vendor/illuminar')) }}"></script>
+    <script>
+        // Apply saved theme before the first paint
+        try {
+            var theme = localStorage.getItem('illuminar-theme');
+            if (theme) {
+                document.documentElement.classList.toggle('dark', theme === 'dark');
+            }
+        } catch (e) {
+        }
+        window.Illuminar = @json($config);
+    </script>
 
+    {!! $dumpHeader !!}
+
+    <link href="{{ route('illuminar.asset', ['file' => 'app.css']) }}?v={{ $assetVersion }}" rel="stylesheet">
+</head>
+<body class="bg-white dark:bg-gray-900">
+<div id="illuminar"></div>
+<script type="module" src="{{ route('illuminar.asset', ['file' => 'app.js']) }}?v={{ $assetVersion }}"></script>
 </body>
 </html>

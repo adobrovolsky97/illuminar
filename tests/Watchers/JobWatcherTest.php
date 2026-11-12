@@ -64,6 +64,8 @@ class JobWatcherTest extends TestCase
         $this->assertCount(1, $data);
 
         $this->assertEquals('processed', $data[0]['status']);
+        $this->assertIsFloat($data[0]['duration']);
+        $this->assertStringContainsString('key', $data[0]['job']['data']);
     }
 
     /**
@@ -73,7 +75,7 @@ class JobWatcherTest extends TestCase
      */
     public function testJobFailure(): void
     {
-        illuminar()->trackJobs();
+        illuminar()->trackJobs()->trackExceptions();
 
         $this->app->get(Dispatcher::class)->dispatch(new FailedTestJob(['key' => 'value']));
 
@@ -83,12 +85,14 @@ class JobWatcherTest extends TestCase
             '--queue'    => 'test-queue',
         ])->run();
 
-        $data = StorageDriverFactory::getDriverForConfig()->getData();
-        $this->assertCount(1, $data);
+        $data = collect(StorageDriverFactory::getDriverForConfig()->getData());
+        $job = $data->firstWhere('type', JobWatcher::getName());
+        $exception = $data->firstWhere('type', 'exception');
 
-        $this->assertEquals(JobWatcher::getName(), $data[0]['type']);
-        $this->assertEquals('failed', $data[0]['status']);
-        $this->assertNotNull($data[0]['exception']);
+        $this->assertCount(2, $data);
+        $this->assertEquals('failed', $job['status']);
+        $this->assertSame('Test exception', $job['exception']['message']);
+        $this->assertSame('Test exception', $exception['message']);
     }
 
     /**

@@ -2,58 +2,37 @@
 
 namespace Adobrovolsky97\Illuminar;
 
+use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
+use Adobrovolsky97\Illuminar\Support\PendingDump;
 use Adobrovolsky97\Illuminar\Watchers\CacheWatcher;
 use Adobrovolsky97\Illuminar\Watchers\DumpWatcher;
 use Adobrovolsky97\Illuminar\Watchers\EventWatcher;
 use Adobrovolsky97\Illuminar\Watchers\ExceptionWatcher;
 use Adobrovolsky97\Illuminar\Watchers\HttpRequestWatcher;
 use Adobrovolsky97\Illuminar\Watchers\JobWatcher;
+use Adobrovolsky97\Illuminar\Watchers\LogWatcher;
 use Adobrovolsky97\Illuminar\Watchers\MailWatcher;
 use Adobrovolsky97\Illuminar\Watchers\ModelWatcher;
 use Adobrovolsky97\Illuminar\Watchers\QueryWatcher;
+use Adobrovolsky97\Illuminar\Watchers\RequestWatcher;
 use Adobrovolsky97\Illuminar\Watchers\SlowQueryWatcher;
 use Adobrovolsky97\Illuminar\Watchers\Watcher;
-use Exception;
-use Illuminate\Mail\Mailable;
+use BadMethodCallException;
+use Dotenv\Dotenv;
+use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Support\Str;
+use RuntimeException;
+use Throwable;
 
 /**
  * Class Illuminar
- *
- * @method void trackQueries()
- * @method void stopTrackingQueries()
- * @method void trackSlowQueries()
- * @method void stopTrackingSlowQueries()
- * @method void trackExceptions()
- * @method void stopTrackingExceptions()
- * @method void trackModels()
- * @method void stopTrackingModels()
- * @method void trackJobs()
- * @method void stopTrackingJobs()
- * @method void trackEvents()
- * @method void stopTrackingEvents()
- * @method void trackCaches()
- * @method void stopTrackingCaches()
- * @method void trackMails()
- * @method void stopTrackingMails()
- * @method void trackHttpRequests()
- * @method void stopTrackingHttpRequests()
  */
 final class Illuminar
 {
     /**
-     * Registered watchers
-     *
-     * @var array
-     */
-    private static array $watchers = [];
-
-    /**
      * Trackable watchers which can be enabled/disabled, e.g. trackQueries, stopTrackingQueries
-     *
-     * @var array
      */
-    private array $trackableWatchers = [
+    public const TRACKABLE_WATCHERS = [
         'query'        => QueryWatcher::class,
         'slow_query'   => SlowQueryWatcher::class,
         'exception'    => ExceptionWatcher::class,
@@ -62,197 +41,468 @@ final class Illuminar
         'event'        => EventWatcher::class,
         'cache'        => CacheWatcher::class,
         'mail'         => MailWatcher::class,
-        'http_request' => HttpRequestWatcher::class
+        'http_request' => HttpRequestWatcher::class,
+        'log'          => LogWatcher::class,
+        'request'      => RequestWatcher::class,
     ];
 
     /**
-     * Initialize Illuminar
+     * Registered watchers
      *
-     * @return void
+     * @var Watcher[]
+     */
+    private static array $watchers = [];
+
+    /**
+     * Re-entrance guard: Illuminar's own work (dumping a model, rendering a mail etc.)
+     * must not be recorded by other watchers.
+     */
+    private static bool $recording = false;
+
+    /**
+     * Rethrow internal errors instead of swallowing them (used in package tests)
+     */
+    public static bool $throwInternalErrors = false;
+
+    /**
+     * Initialize Illuminar
      */
     public static function initialize(): void
     {
-        if (!config('illuminar.enabled')) {
+        self::resetWatchers();
+
+        if (!self::isEnabled()) {
             return;
         }
 
-        self::resetWatchers();
-
         self::registerWatcher(app(DumpWatcher::class));
-        // This one should be registered by default as it will catch JobProcessed and JobFailed events
+        // Registered by default as it catches JobProcessing / JobProcessed / JobFailed events from workers
         self::registerWatcher(app(JobWatcher::class));
+
+        foreach (self::configuredWatchers() as $type) {
+            self::enableWatcher($type);
+        }
     }
 
     /**
-     * Track/stop tracking logic
-     *
-     * @throws Exception
+     * Restore tracking state from the config without registering listeners again.
+     * Used between requests in long-running processes (Octane).
      */
-    public function __call(string $name, array $arguments)
+    public static function resetTracking(): void
     {
-        foreach ($this->trackableWatchers as $type => $watcher) {
-            if ($name === 'track' . ucfirst(Str::plural(Str::camel($type)))) {
-                $this->enableWatcher($type);
-                return;
-            }
+        if (empty(self::$watchers)) {
+            self::initialize();
 
-            if ($name === 'stopTracking' . ucfirst(Str::plural(Str::camel($type)))) {
-                $this->disableWatcher($type);
-                return;
+            return;
+        }
+
+        $configured = self::configuredWatchers();
+
+        foreach (self::TRACKABLE_WATCHERS as $type => $class) {
+            if (in_array($type, $configured, true)) {
+                self::enableWatcher($type);
+            } else {
+                optional(self::getWatcher($type))->disable();
+            }
+        }
+    }
+
+    /**
+     * Watcher types enabled in illuminar.track config
+     *
+     * @return string[]
+     */
+    public static function configuredWatchers(): array
+    {
+        $types = [];
+
+        foreach ((array)config('illuminar.track', []) as $type => $enabled) {
+            if (filter_var($enabled, FILTER_VALIDATE_BOOLEAN) && isset(self::TRACKABLE_WATCHERS[$type])) {
+                $types[] = $type;
             }
         }
 
-        throw new Exception('Method ' . $name . ' does not exist');
+        return $types;
+    }
+
+    public static function isEnabled(): bool
+    {
+        return (bool)config('illuminar.enabled');
+    }
+
+    /**
+     * Run Illuminar's internal logic. Never breaks the application and never records itself.
+     */
+    public static function record(callable $callback): void
+    {
+        if (self::$recording || !self::isEnabled()) {
+            return;
+        }
+
+        self::$recording = true;
+
+        try {
+            $callback();
+        } catch (Throwable $exception) {
+            if (self::$throwInternalErrors) {
+                throw $exception;
+            }
+        } finally {
+            self::$recording = false;
+        }
+    }
+
+    public static function isRecording(): bool
+    {
+        return self::$recording;
+    }
+
+    public function trackQueries(): self
+    {
+        return $this->track('query');
+    }
+
+    public function stopTrackingQueries(): self
+    {
+        return $this->stopTracking('query');
+    }
+
+    public function trackSlowQueries(): self
+    {
+        return $this->track('slow_query');
+    }
+
+    public function stopTrackingSlowQueries(): self
+    {
+        return $this->stopTracking('slow_query');
+    }
+
+    public function trackExceptions(): self
+    {
+        return $this->track('exception');
+    }
+
+    public function stopTrackingExceptions(): self
+    {
+        return $this->stopTracking('exception');
+    }
+
+    public function trackModels(): self
+    {
+        return $this->track('model');
+    }
+
+    public function stopTrackingModels(): self
+    {
+        return $this->stopTracking('model');
+    }
+
+    /**
+     * Alias of trackModels()
+     */
+    public function trackModelEvents(): self
+    {
+        return $this->trackModels();
+    }
+
+    /**
+     * Alias of stopTrackingModels()
+     */
+    public function stopTrackingModelEvents(): self
+    {
+        return $this->stopTrackingModels();
+    }
+
+    public function trackJobs(): self
+    {
+        return $this->track('job');
+    }
+
+    public function stopTrackingJobs(): self
+    {
+        return $this->stopTracking('job');
+    }
+
+    public function trackEvents(): self
+    {
+        return $this->track('event');
+    }
+
+    public function stopTrackingEvents(): self
+    {
+        return $this->stopTracking('event');
+    }
+
+    public function trackCaches(): self
+    {
+        return $this->track('cache');
+    }
+
+    public function stopTrackingCaches(): self
+    {
+        return $this->stopTracking('cache');
+    }
+
+    /**
+     * Alias of trackCaches()
+     */
+    public function trackCache(): self
+    {
+        return $this->trackCaches();
+    }
+
+    /**
+     * Alias of stopTrackingCaches()
+     */
+    public function stopTrackingCache(): self
+    {
+        return $this->stopTrackingCaches();
+    }
+
+    public function trackMails(): self
+    {
+        return $this->track('mail');
+    }
+
+    public function stopTrackingMails(): self
+    {
+        return $this->stopTracking('mail');
+    }
+
+    public function trackHttpRequests(): self
+    {
+        return $this->track('http_request');
+    }
+
+    public function stopTrackingHttpRequests(): self
+    {
+        return $this->stopTracking('http_request');
+    }
+
+    public function trackLogs(): self
+    {
+        return $this->track('log');
+    }
+
+    public function stopTrackingLogs(): self
+    {
+        return $this->stopTracking('log');
+    }
+
+    /**
+     * Summary (duration, memory, queries, N+1...) of every request / command / job
+     */
+    public function trackRequests(): self
+    {
+        return $this->track('request');
+    }
+
+    public function stopTrackingRequests(): self
+    {
+        return $this->stopTracking('request');
     }
 
     /**
      * Enable all watchers
-     *
-     * @return void
      */
-    public function trackAll(): void
+    public function trackAll(): self
     {
-        foreach ($this->trackableWatchers as $type => $watcher) {
-            $this->enableWatcher($type);
+        foreach (array_keys(self::TRACKABLE_WATCHERS) as $type) {
+            $this->track($type);
         }
+
+        return $this;
     }
 
     /**
      * Disable all watchers
-     *
-     * @return void
      */
-    public function stopTrackingAll(): void
+    public function stopTrackingAll(): self
     {
-        foreach ($this->trackableWatchers as $type => $watcher) {
-            $this->disableWatcher($type);
+        foreach (array_keys(self::TRACKABLE_WATCHERS) as $type) {
+            $this->stopTracking($type);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Track everything only while the callback is running
+     *
+     * illuminar()->watch(fn () => $service->handle(), ['query', 'model']);
+     *
+     * @param callable $callback
+     * @param string[]|null $types Watcher types, all when null
+     * @return mixed Callback result
+     */
+    public function watch(callable $callback, ?array $types = null)
+    {
+        $types ??= array_keys(self::TRACKABLE_WATCHERS);
+
+        $previouslyEnabled = array_filter($types, function (string $type) {
+            return optional(self::getWatcher($type))->enabled;
+        });
+
+        foreach ($types as $type) {
+            $this->track($type);
+        }
+
+        try {
+            return $callback();
+        } finally {
+            foreach (array_diff($types, $previouslyEnabled) as $type) {
+                $this->stopTracking($type);
+            }
         }
     }
 
     /**
-     * Debug mailable
+     * Generic track / stop tracking methods for the backward compatibility, e.g. trackHttpRequests()
      *
-     * @param Mailable $mailable
-     * @return void
+     * @throws BadMethodCallException
      */
-    public function mailable(Mailable $mailable): void
+    public function __call(string $name, array $arguments)
     {
-        $watcher = self::getWatcher(MailWatcher::getName());
+        foreach (array_keys(self::TRACKABLE_WATCHERS) as $type) {
+            $method = ucfirst(Str::plural(Str::camel($type)));
 
-        if (is_null($watcher)) {
-            $watcher = app(MailWatcher::class);
-            self::registerWatcher($watcher);
+            if ($name === 'track' . $method) {
+                return $this->track($type);
+            }
+
+            if ($name === 'stopTracking' . $method) {
+                return $this->stopTracking($type);
+            }
         }
 
+        throw new BadMethodCallException('Method ' . self::class . '::' . $name . ' does not exist.');
+    }
+
+    /**
+     * Preview mailable / notification mail message without sending it
+     *
+     * @param Renderable $mailable Mailable or MailMessage
+     */
+    public function mailable(Renderable $mailable): self
+    {
+        if (!self::isEnabled()) {
+            return $this;
+        }
+
+        /** @var MailWatcher $watcher */
+        $watcher = self::getWatcher(MailWatcher::getName()) ?? self::registerWatcher(app(MailWatcher::class));
+
         $watcher->mailable($mailable);
+
+        return $this;
     }
 
     /**
      * Create dump
      *
-     * @param ...$args
-     * @return DumpWatcher
+     * @param mixed ...$args
      */
-    public function dump(...$args): DumpWatcher
+    public function dump(...$args): PendingDump
     {
-        /** @var DumpWatcher $watcher */
-        $watcher = self::getWatcher(DumpWatcher::getName());
-
-        if (is_null($watcher)) {
-            $watcher = app(DumpWatcher::class);
-            self::registerWatcher($watcher);
+        if (!self::isEnabled()) {
+            return new PendingDump(null);
         }
+
+        /** @var DumpWatcher $watcher */
+        $watcher = self::getWatcher(DumpWatcher::getName()) ?? self::registerWatcher(app(DumpWatcher::class));
 
         return $watcher->addDump(...$args);
     }
 
     /**
-     * Show .env
+     * Dump and die
      *
-     * @return void
-     * @throws Exception
+     * @param mixed ...$args
+     * @return never
      */
-    public function showEnv(): void
+    public function dd(...$args): void
     {
-        if (!file_exists(base_path('.env'))) {
-            throw new Exception('File .env does not exist');
+        $this->dump(...$args)->die();
+    }
+
+    /**
+     * Show .env variables. Sensitive values (see illuminar.hidden_env_keys) are masked.
+     *
+     * @throws RuntimeException
+     */
+    public function showEnv(bool $maskSensitive = true): PendingDump
+    {
+        if (!self::isEnabled()) {
+            return new PendingDump(null);
         }
 
-        $envFileContent = file_get_contents(base_path('.env'));
+        $path = app()->environmentFilePath();
 
-        $lines = explode("\n", $envFileContent);
+        if (!is_file($path)) {
+            throw new RuntimeException("File $path does not exist");
+        }
 
-        $envArray = [];
+        $variables = Dotenv::parse((string)file_get_contents($path));
 
-        foreach ($lines as $line) {
-            // Ignore comments and empty lines
-            if (strpos(trim($line), '#') === 0 || trim($line) === '') {
-                continue;
+        if ($maskSensitive) {
+            $patterns = (array)config('illuminar.hidden_env_keys', []);
+
+            foreach ($variables as $key => $value) {
+                if ($value !== null && $value !== '' && Str::is($patterns, $key)) {
+                    $variables[$key] = '********';
+                }
             }
-
-            list($key, $value) = explode('=', $line, 2);
-            $envArray[trim($key)] = trim($value);
         }
 
-        $this->dump($envArray)->tag('env');
+        return $this->dump($variables)->tag('env');
+    }
+
+    /**
+     * Remove all stored entries
+     */
+    public function clear(): self
+    {
+        StorageDriverFactory::getDriverForConfig()->clear();
+
+        return $this;
     }
 
     /**
      * Get watcher from loaded watchers
-     *
-     * @param string $name
-     * @return Watcher|null
      */
-    private static function getWatcher(string $name): ?Watcher
+    public static function getWatcher(string $name): ?Watcher
     {
         return self::$watchers[$name] ?? null;
     }
 
-    /**
-     * Register watcher
-     *
-     * @param Watcher $watcher
-     * @return void
-     */
-    private static function registerWatcher(Watcher $watcher): void
+    private function track(string $type): self
     {
-        self::$watchers[$watcher::getName()] = $watcher;
+        if (self::isEnabled()) {
+            self::enableWatcher($type);
+        }
+
+        return $this;
     }
 
-    /**
-     * Enable specific watcher
-     *
-     * @param string $type
-     * @return void
-     */
-    private function enableWatcher(string $type): void
+    private function stopTracking(string $type): self
     {
-        $watcher = self::getWatcher($type);
+        optional(self::getWatcher($type))->disable();
 
-        if (is_null($watcher)) {
-            self::registerWatcher(app($this->trackableWatchers[$type])->enable());
-            return;
-        }
+        return $this;
+    }
+
+    private static function registerWatcher(Watcher $watcher): Watcher
+    {
+        return self::$watchers[$watcher::getName()] = $watcher;
+    }
+
+    private static function enableWatcher(string $type): void
+    {
+        $watcher = self::getWatcher($type) ?? self::registerWatcher(app(self::TRACKABLE_WATCHERS[$type]));
 
         $watcher->enable();
     }
 
-    /**
-     * Disable specific watcher
-     *
-     * @param string $type
-     * @return void
-     */
-    private function disableWatcher(string $type): void
-    {
-        optional(self::getWatcher($type))->disable();
-    }
-
-    /**
-     * Reset watchers
-     *
-     * @return void
-     */
     private static function resetWatchers(): void
     {
         self::$watchers = [];

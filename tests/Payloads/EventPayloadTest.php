@@ -32,13 +32,8 @@ class EventPayloadTest extends TestCase
 
         $this->assertEquals(EventWatcher::getName(), $result['type']);
         $this->assertEquals('SomeEvent', $result['event_name']);
-        $this->assertCount(2, $result['event']);
-        $this->assertEquals(
-            [
-                ['type' => 'string', 'data' => 'argument1'],
-                ['type' => 'string', 'data' => 'argument2'],
-            ],
-            $result['event']
-        );
+        $this->assertSame('html', $result['event']['type']);
+        $this->assertStringContainsString('argument1', $result['event']['data']);
+        $this->assertStringContainsString('argument2', $result['event']['data']);
     }
 }

@@ -3,7 +3,7 @@
 namespace Adobrovolsky97\Illuminar\Watchers;
 
 use Adobrovolsky97\Illuminar\Events\SlowQueryFound;
-use Adobrovolsky97\Illuminar\Payloads\QueryPayload;
+use Adobrovolsky97\Illuminar\Illuminar;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\Event;
 
@@ -14,31 +14,29 @@ use Illuminate\Support\Facades\Event;
  */
 class SlowQueryWatcher extends QueryWatcher
 {
-    /**
-     * @return string
-     */
     public static function getName(): string
     {
         return 'slow_query';
     }
 
-    /**
-     * @return void
-     */
     protected function initialize(): void
     {
-        Event::listen(QueryExecuted::class, function (QueryExecuted $query) {
-
-            if (!$this->enabled || $query->time < config('illuminar.queries.slow_time_ms', 5000)) {
+        Event::listen(QueryExecuted::class, function (QueryExecuted $event) {
+            if (!$this->enabled || !self::isSlow($event) || Illuminar::isRecording()) {
                 return;
             }
 
-            $caller = $this->getCallerFromStackTrace();
+            $payload = null;
 
-            if (!empty($caller) && !$this->shouldIgnoreQuery($caller['file'])) {
+            $this->record(function () use ($event, &$payload) {
+                $payload = $this->makePayload($event);
 
-                Event::dispatch(new SlowQueryFound($query));
-                $this->storageDriver->saveEntry((new QueryPayload($query))->toArray());
+                // When all queries are tracked, the slow one is already stored (and marked as slow)
+                return optional(Illuminar::getWatcher(QueryWatcher::getName()))->enabled ? null : $payload;
+            });
+
+            if ($payload !== null) {
+                Event::dispatch(new SlowQueryFound($event));
             }
         });
     }

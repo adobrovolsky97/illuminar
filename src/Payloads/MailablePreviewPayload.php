@@ -2,45 +2,34 @@
 
 namespace Adobrovolsky97\Illuminar\Payloads;
 
-use Adobrovolsky97\Illuminar\Formatters\PrimitiveArgumentFormatter;
 use Adobrovolsky97\Illuminar\Watchers\MailWatcher;
-use Illuminate\Mail\Mailable;
-use ReflectionException;
+use Illuminate\Contracts\Support\Renderable;
 
 /**
- * Class MailablePreviewPayload
+ * Preview of Mailable or notification MailMessage without sending it
  */
 class MailablePreviewPayload extends Payload
 {
-    /**
-     * @var Mailable
-     */
-    private Mailable $mailable;
+    private Renderable $mailable;
 
-    /**
-     * @param Mailable $mailable
-     */
-    public function __construct(Mailable $mailable)
+    public function __construct(Renderable $mailable)
     {
         $this->mailable = $mailable;
 
         parent::__construct();
     }
 
-    /**
-     * @return array
-     * @throws ReflectionException
-     */
     public function toArray(): array
     {
-        return [
-            'uuid'     => $this->getUuid(),
-            'type'     => MailWatcher::getName(),
-            'class'    => get_class($this->mailable),
-            'html'     => $this->mailable->render(),
-            'mailable' => app(PrimitiveArgumentFormatter::class)->convertToPrimitive($this->mailable),
-            'caller'   => $this->getCaller(),
-            'time'     => now()->format('H:i:s'),
-        ];
+        $html = (string)$this->mailable->render();
+
+        return array_merge($this->baseFields(MailWatcher::getName()), [
+            'class'          => get_class($this->mailable),
+            'mailable_class' => get_class($this->mailable),
+            'subject'        => $this->mailable->subject ?? null,
+            'is_preview'     => true,
+            'html'           => $html,
+            'mailable'       => $this->format($this->mailable),
+        ]);
     }
 }

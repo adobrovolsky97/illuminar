@@ -8,31 +8,25 @@ use Illuminate\Support\Facades\Event;
 use Throwable;
 
 /**
- * Class ExceptionWatcher
+ * Tracks reported (logged) exceptions
  */
 class ExceptionWatcher extends Watcher
 {
-    /**
-     * @return string
-     */
     public static function getName(): string
     {
         return 'exception';
     }
 
-    /**
-     * @return void
-     */
     protected function initialize(): void
     {
         Event::listen(MessageLogged::class, function (MessageLogged $event) {
-            if (!$this->enabled
-                || !isset($event->context['exception'])
-                || !$event->context['exception'] instanceof Throwable) {
+            if (!$this->enabled || !($event->context['exception'] ?? null) instanceof Throwable) {
                 return;
             }
 
-            $this->storageDriver->saveEntry((new ExceptionPayload($event))->toArray());
+            $this->record(function () use ($event) {
+                return new ExceptionPayload($event);
+            });
         });
     }
 }

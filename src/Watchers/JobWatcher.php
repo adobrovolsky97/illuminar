@@ -2,11 +2,16 @@
 
 namespace Adobrovolsky97\Illuminar\Watchers;
 
+use Adobrovolsky97\Illuminar\Illuminar;
 use Adobrovolsky97\Illuminar\Payloads\JobPayload;
+use Adobrovolsky97\Illuminar\Support\Context;
+use Illuminate\Queue\Events\JobExceptionOccurred;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
+use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Queue\Queue;
 use Illuminate\Support\Facades\Event;
+use Throwable;
 
 /**
  * Class JobWatcher
@@ -14,73 +19,123 @@ use Illuminate\Support\Facades\Event;
 class JobWatcher extends Watcher
 {
     /**
-     * @return string
+     * Start time of jobs being processed by the current process
+     *
+     * @var array<string, float>
      */
+    private array $startedAt = [];
+
+    /**
+     * Job (object id) which execution context is currently active
+     */
+    private ?int $contextJobId = null;
+
     public static function getName(): string
     {
         return 'job';
     }
 
-    /**
-     * @return void
-     */
     protected function initialize(): void
     {
         Queue::createPayloadUsing(function ($connection, $queue, $payload) {
-            return ['illuminar_uuid' => optional($this->handleIncomingJob($connection, $queue, $payload))->getUuid()];
+            $uuid = $this->handleIncomingJob((string)$connection, $queue, (array)$payload);
+
+            return $uuid ? ['illuminar_uuid' => $uuid] : [];
         });
 
-        Event::listen([JobProcessed::class, JobFailed::class], function (object $event) {
+        // Processing results are tracked even if the watcher is disabled in the current process,
+        // as the job could be dispatched (and tracked) by another one, e.g. web request -> worker
+        Event::listen(JobProcessing::class, function (JobProcessing $event) {
+            $this->leaveJobContext();
+            Context::push('job ' . $this->getJobName($event));
+            $this->contextJobId = spl_object_id($event->job);
+
+            $uuid = $this->getIlluminarUuid($event);
+
+            if ($uuid === null) {
+                return;
+            }
+
+            $this->startedAt[$uuid] = microtime(true);
+
+            $this->record(function () use ($uuid, $event) {
+                return ['uuid' => $uuid] + JobPayload::fromEvent($event);
+            });
+        });
+
+        Event::listen([JobProcessed::class, JobFailed::class, JobExceptionOccurred::class], function (object $event) {
             $this->handleProcessedJobResult($event);
         });
     }
 
     /**
-     * Handle incoming job.
-     *
-     * @param string $connection
-     * @param string|null $queue
-     * @param array $payload
-     * @return JobPayload|null
+     * Store dispatched job, returns its illuminar uuid.
      */
-    protected function handleIncomingJob(string $connection, ?string $queue, array $payload): ?JobPayload
+    protected function handleIncomingJob(string $connection, ?string $queue, array $payload): ?string
     {
-        if (!$this->enabled) {
+        if (!$this->enabled || Illuminar::isRecording()) {
             return null;
         }
 
         $jobPayload = new JobPayload($connection, $queue, $payload);
 
-        if (in_array($jobPayload->getJobClass(), config('illuminar.jobs.ignored_jobs', []))) {
+        if (in_array($jobPayload->getJobClass(), (array)config('illuminar.jobs.ignored_jobs', []), true)) {
             return null;
         }
 
-        $this->storageDriver->saveEntry($jobPayload->toArray());
+        $stored = false;
 
-        return $jobPayload;
+        $this->record(function () use ($jobPayload, &$stored) {
+            $stored = true;
+
+            return $jobPayload;
+        });
+
+        return $stored ? $jobPayload->getUuid() : null;
     }
 
-    /**
-     * Handle processed job result.
-     *
-     * @param object $event
-     * @return void
-     */
     protected function handleProcessedJobResult(object $event): void
     {
-        if (!$event instanceof JobFailed && !$event instanceof JobProcessed) {
-            return;
+        $uuid = $this->getIlluminarUuid($event);
+
+        if ($uuid !== null) {
+            $duration = isset($this->startedAt[$uuid]) ? (microtime(true) - $this->startedAt[$uuid]) * 1000 : null;
+            unset($this->startedAt[$uuid]);
+
+            $this->record(function () use ($uuid, $event, $duration) {
+                return ['uuid' => $uuid] + JobPayload::fromEvent($event, $duration);
+            });
         }
 
-        $illuminarUuid = $event->job->payload()['illuminar_uuid'] ?? null;
-
-        if ($illuminarUuid === null) {
-            return;
+        if (isset($event->job) && $this->contextJobId === spl_object_id($event->job)) {
+            $this->leaveJobContext();
         }
-
-        $this->storageDriver->saveEntry(array_merge(
-            ['uuid' => $illuminarUuid],
-            JobPayload::fromEvent($event)
-        ));
     }
+
+    private function leaveJobContext(): void
+    {
+        if ($this->contextJobId !== null) {
+            Context::pop();
+            $this->contextJobId = null;
+        }
+    }
+
+    private function getIlluminarUuid(object $event): ?string
+    {
+        try {
+            return $event->job->payload()['illuminar_uuid'] ?? null;
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+
+    private function getJobName(object $event): string
+    {
+        try {
+            return $event->job->resolveName();
+        } catch (Throwable $e) {
+            return 'unknown';
+        }
+    }
+
 }

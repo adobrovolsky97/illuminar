@@ -2,35 +2,36 @@
 
 namespace Adobrovolsky97\Illuminar\Formatters;
 
+use Adobrovolsky97\Illuminar\Support\EditorLink;
 use Symfony\Component\VarDumper\Cloner\VarCloner;
 use Symfony\Component\VarDumper\Dumper\HtmlDumper as SymfonyHtmlDumper;
 
 /**
- * Class Dumper
+ * Class HtmlDumper
  */
 class HtmlDumper
 {
-    /**
-     * @var VarCloner
-     */
     protected VarCloner $cloner;
 
-    /**
-     * @var SymfonyHtmlDumper
-     */
     protected SymfonyHtmlDumper $dumper;
 
-    /**
-     * @param SymfonyHtmlDumper $dumper
-     * @param VarCloner $cloner
-     */
     public function __construct(SymfonyHtmlDumper $dumper, VarCloner $cloner)
     {
         $this->dumper = $dumper;
         $this->cloner = $cloner;
 
+        $this->cloner->setMaxItems((int)config('illuminar.dump_max_items', 2500));
+        $this->cloner->setMaxString((int)config('illuminar.dump_max_string', 10000));
+
         $this->dumper->setDumpHeader('');
-        $this->dumper->setDisplayOptions(['maxDepth' => config('illuminar.dump_depth', 2)]);
+
+        $options = ['maxDepth' => (int)config('illuminar.dump_depth', 2)];
+
+        if ($fileLinkFormat = EditorLink::fileLinkFormat()) {
+            $options['fileLinkFormat'] = $fileLinkFormat;
+        }
+
+        $this->dumper->setDisplayOptions($options);
     }
 
     /**
@@ -41,6 +42,21 @@ class HtmlDumper
      */
     public function dump($var): string
     {
-        return $this->dumper->dump($this->cloner->cloneVar($var), true);
+        return (string)$this->dumper->dump($this->cloner->cloneVar($var), true);
+    }
+
+    /**
+     * Symfony dumper JS & CSS which must be included to the page once
+     */
+    public static function header(): string
+    {
+        $dumper = new class extends SymfonyHtmlDumper {
+            public function header(): string
+            {
+                return $this->getDumpHeader();
+            }
+        };
+
+        return $dumper->header();
     }
 }

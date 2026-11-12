@@ -2,48 +2,28 @@
 
 namespace Adobrovolsky97\Illuminar\Payloads;
 
-use Adobrovolsky97\Illuminar\Formatters\PrimitiveArgumentFormatter;
 use Adobrovolsky97\Illuminar\Watchers\JobWatcher;
+use Illuminate\Queue\Events\JobExceptionOccurred;
 use Illuminate\Queue\Events\JobFailed;
+use Illuminate\Queue\Events\JobProcessing;
+use Throwable;
 
 /**
  * Class JobPayload
  */
 class JobPayload extends Payload
 {
-    /**
-     * Job Connection
-     *
-     * @var string
-     */
     protected string $connection;
 
-    /**
-     * Job Queue
-     *
-     * @var string|null
-     */
     protected ?string $queue;
 
-    /**
-     * Job payload
-     *
-     * @var array
-     */
     protected array $payload;
 
     /**
      * For job watcher we need to remove vendor path from backtrace to show original caller.
-     *
-     * @var array
      */
-    protected array $callerPathsToRemove = ['vendor'];
+    protected array $callerPathsToRemove = ['vendor/'];
 
-    /**
-     * @param string $connection
-     * @param string|null $queue
-     * @param array $payload
-     */
     public function __construct(string $connection, ?string $queue, array $payload)
     {
         $this->connection = $connection;
@@ -53,54 +33,103 @@ class JobPayload extends Payload
         parent::__construct();
     }
 
-    /**
-     * @return array
-     */
     public function toArray(): array
     {
-        $jobData = !isset($this->payload['data']['command'])
-            ? ($this->payload['data'] ?? [])
-            : ($this->payload['data']['command'] ?? []);
-
-        return [
-            'type'       => JobWatcher::getName(),
+        return array_merge($this->baseFields(JobWatcher::getName()), [
             'job_class'  => $this->getJobClass(),
-            'uuid'       => $this->getUuid(),
-            'caller'     => $this->getCaller(),
             'status'     => 'pending',
             'connection' => $this->connection,
             'queue'      => $this->queue,
-            'tries'      => $this->payload['maxTries'] ?? 1,
-            'timeout'    => $this->payload['timeout'] ?? 10,
-            'job'        => app(PrimitiveArgumentFormatter::class)->convertToPrimitive($jobData),
+            'tries'      => $this->payload['maxTries'] ?? null,
+            'timeout'    => $this->payload['timeout'] ?? null,
+            'job'        => $this->format($this->getJobData()),
             'exception'  => null,
-            'time'       => now()->format('H:i:s')
-        ];
+        ]);
     }
 
     /**
-     * Get data for event
-     *
-     * @param object $event
-     * @return array
+     * Partial update of the stored job entry for JobProcessing / JobProcessed / JobFailed events
      */
-    public static function fromEvent(object $event): array
+    public static function fromEvent(object $event, ?float $durationMs = null): array
     {
-        return [
-            'type'   => JobWatcher::getName(),
-            'status' => $event instanceof JobFailed ? 'failed' : 'processed',
-            'exception' => property_exists($event, 'exception')
-                ? app(PrimitiveArgumentFormatter::class)->convertToPrimitive($event->exception)
-                : null,
-            'time'   => now()->format('H:i:s')
+        if ($event instanceof JobProcessing) {
+            $status = 'processing';
+        } elseif ($event instanceof JobFailed || $event instanceof JobExceptionOccurred || self::jobHasFailed($event)) {
+            $status = 'failed';
+        } else {
+            $status = 'processed';
+        }
+
+        // No "type" here: a partial update must not create an entry if the original one is gone
+        $data = [
+            'status'   => $status,
+            'attempts' => self::attempts($event),
         ];
+
+        if ($durationMs !== null) {
+            $data['duration'] = round($durationMs, 2);
+        }
+
+        if (($event->exception ?? null) instanceof Throwable) {
+            $exception = $event->exception;
+
+            $data['exception'] = [
+                'class'   => get_class($exception),
+                'message' => $exception->getMessage(),
+                'file'    => $exception->getFile() . ':' . $exception->getLine(),
+            ];
+        }
+
+        return $data;
     }
 
-    /**
-     * @return string
-     */
     public function getJobClass(): string
     {
         return $this->payload['displayName'] ?? 'unknown';
+    }
+
+    /**
+     * Job properties for display.
+     *
+     * The queued command is serialized; it is unserialized WITHOUT instantiating classes
+     * (no __wakeup, no models fetched from DB) - properties are still visible in the dump.
+     *
+     * @return mixed
+     */
+    private function getJobData()
+    {
+        $data = $this->payload['data'] ?? [];
+
+        if (!isset($data['command']) || !is_string($data['command'])) {
+            return $data;
+        }
+
+        if (!preg_match('/^O:\d+:"/', $data['command'])) {
+            return ['commandName' => $data['commandName'] ?? null, 'command' => '[encrypted]'];
+        }
+
+        try {
+            return unserialize($data['command'], ['allowed_classes' => false]);
+        } catch (Throwable $e) {
+            return $data;
+        }
+    }
+
+    private static function jobHasFailed(object $event): bool
+    {
+        try {
+            return isset($event->job) && method_exists($event->job, 'hasFailed') && $event->job->hasFailed();
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    private static function attempts(object $event): ?int
+    {
+        try {
+            return isset($event->job) ? $event->job->attempts() : null;
+        } catch (Throwable $e) {
+            return null;
+        }
     }
 }

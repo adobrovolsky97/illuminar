@@ -10,6 +10,7 @@ use Adobrovolsky97\Illuminar\Tests\TestCase;
 /**
  * Class QueryPayloadTest
  */
+#[\PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations]
 class QueryPayloadTest extends TestCase
 {
     /**

@@ -2,15 +2,7 @@
 
 namespace Adobrovolsky97\Illuminar\Http\Requests;
 
-use Adobrovolsky97\Illuminar\Watchers\CacheWatcher;
-use Adobrovolsky97\Illuminar\Watchers\DumpWatcher;
-use Adobrovolsky97\Illuminar\Watchers\EventWatcher;
-use Adobrovolsky97\Illuminar\Watchers\ExceptionWatcher;
-use Adobrovolsky97\Illuminar\Watchers\HttpRequestWatcher;
-use Adobrovolsky97\Illuminar\Watchers\JobWatcher;
-use Adobrovolsky97\Illuminar\Watchers\MailWatcher;
-use Adobrovolsky97\Illuminar\Watchers\ModelWatcher;
-use Adobrovolsky97\Illuminar\Watchers\QueryWatcher;
+use Adobrovolsky97\Illuminar\Helpers\SearchHelper;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -19,34 +11,18 @@ use Illuminate\Validation\Rule;
  */
 class SearchRequest extends FormRequest
 {
-    /**
-     * @return array[]
-     */
     public function rules(): array
     {
         return [
             'page'                     => ['nullable', 'integer', 'min:1'],
-            'page_size'                => ['nullable', 'integer', 'min:50'],
-            'search'                   => ['nullable', 'string'],
+            'page_size'                => ['nullable', 'integer', 'min:10', 'max:500'],
+            'search'                   => ['nullable', 'string', 'max:500'],
+            'context_id'               => ['nullable', 'string', 'max:64'],
             'group_duplicated_queries' => ['nullable', 'boolean'],
             'is_slow'                  => ['nullable', 'boolean'],
             'is_duplicate'             => ['nullable', 'boolean'],
             'types'                    => ['nullable', 'array'],
-            'types.*'                  => [
-                'nullable',
-                'string',
-                Rule::in([
-                    DumpWatcher::getName(),
-                    CacheWatcher::getName(),
-                    ModelWatcher::getName(),
-                    MailWatcher::getName(),
-                    QueryWatcher::getName(),
-                    EventWatcher::getName(),
-                    ExceptionWatcher::getName(),
-                    HttpRequestWatcher::getName(),
-                    JobWatcher::getName()
-                ])
-            ],
+            'types.*'                  => ['nullable', 'string', Rule::in(SearchHelper::TYPES)],
         ];
     }
 }

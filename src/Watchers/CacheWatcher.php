@@ -14,17 +14,11 @@ use Illuminate\Support\Facades\Event;
  */
 class CacheWatcher extends Watcher
 {
-    /**
-     * @return string
-     */
     public static function getName(): string
     {
         return 'cache';
     }
 
-    /**
-     * @return void
-     */
     protected function initialize(): void
     {
         Event::listen([
@@ -37,7 +31,9 @@ class CacheWatcher extends Watcher
                 return;
             }
 
-            $this->storageDriver->saveEntry((new CachePayload($event))->toArray());
+            $this->record(function () use ($event) {
+                return new CachePayload($event);
+            });
         });
     }
 }

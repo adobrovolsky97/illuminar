@@ -3,15 +3,15 @@
 namespace Adobrovolsky97\Illuminar\Http\Controllers;
 
 use Adobrovolsky97\Illuminar\Factories\StorageDriverFactory;
-use Adobrovolsky97\Illuminar\Helpers\SearchHelper;
+use Adobrovolsky97\Illuminar\Formatters\HtmlDumper;
 use Adobrovolsky97\Illuminar\Http\Requests\SearchRequest;
 use Adobrovolsky97\Illuminar\Http\Resources\ItemResource;
-use Adobrovolsky97\Illuminar\StorageDrivers\StorageDriverInterface;
+use Adobrovolsky97\Illuminar\Support\EntryRepository;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response as Status;
 
 /**
@@ -19,61 +19,71 @@ use Symfony\Component\HttpFoundation\Response as Status;
  */
 class IlluminarController extends Controller
 {
-    /**
-     * @var StorageDriverInterface
-     */
-    private StorageDriverInterface $storageDriver;
-
-    /**
-     * @var SearchHelper
-     */
-    private SearchHelper $searchHelper;
-
-    /**
-     * @param SearchHelper $searchHelper
-     */
-    public function __construct(SearchHelper $searchHelper)
-    {
-        $this->storageDriver = StorageDriverFactory::getDriverForConfig();
-        $this->searchHelper = $searchHelper;
-    }
+    private const ASSET_TYPES = [
+        'app.js'      => 'application/javascript; charset=utf-8',
+        'app.css'     => 'text/css; charset=utf-8',
+        'favicon.ico' => 'image/x-icon',
+    ];
 
     /**
      * Show illuminar page
-     *
-     * @return View
      */
     public function index(): View
     {
-        if (!config('illuminar.enabled')) {
-            abort(404);
-        }
-
-        return view('illuminar::main');
+        return view('illuminar::main', [
+            'assetVersion' => $this->assetVersion(),
+            'dumpHeader'   => HtmlDumper::header(),
+            'config'       => [
+                'basePath' => rtrim(url(trim((string)config('illuminar.path', 'illuminar'), '/')), '/'),
+                'theme'    => config('illuminar.theme', 'dark'),
+                'appName'  => config('app.name'),
+                'tracking' => array_keys(array_filter(array_map(function ($value) {
+                    return filter_var($value, FILTER_VALIDATE_BOOLEAN);
+                }, (array)config('illuminar.track', [])))),
+            ],
+        ]);
     }
 
     /**
      * Get data to display
-     *
-     * @param SearchRequest $request
-     * @return AnonymousResourceCollection
      */
-    public function getData(SearchRequest $request): AnonymousResourceCollection
+    public function getData(SearchRequest $request, EntryRepository $entries): AnonymousResourceCollection
     {
-        return ItemResource::collection(
-            $this->searchHelper->filterData($this->storageDriver->getData(), $request->validated())
-        );
+        $filters = $request->validated();
+
+        return ItemResource::collection($entries->search($filters))
+            ->additional(['type_counts' => $entries->countByType($filters['context_id'] ?? null)]);
     }
 
     /**
      * Clear entries
-     *
-     * @return JsonResponse
      */
     public function clear(): JsonResponse
     {
-        $this->storageDriver->clear();
+        StorageDriverFactory::getDriverForConfig()->clear();
 
-        return Response::json(null, Status::HTTP_NO_CONTENT);
+        return new JsonResponse(null, Status::HTTP_NO_CONTENT);
+    }
+
+    /**
+     * Serve compiled UI assets directly from the package, no need to publish them
+     */
+    public function asset(string $file): BinaryFileResponse
+    {
+        $path = dirname(__DIR__, 3) . '/public/' . $file;
+
+        abort_unless(isset(self::ASSET_TYPES[$file]) && is_file($path), 404);
+
+        return response()->file($path, [
+            'Content-Type'  => self::ASSET_TYPES[$file],
+            'Cache-Control' => 'public, max-age=31536000, immutable',
+        ]);
+    }
+
+    private function assetVersion(): string
+    {
+        $base = dirname(__DIR__, 3) . '/public/';
+
+        return substr(md5((string)@filemtime($base . 'app.js') . (string)@filemtime($base . 'app.css')), 0, 12);
     }
 }

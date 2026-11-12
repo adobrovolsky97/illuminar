@@ -3,120 +3,37 @@
 namespace Adobrovolsky97\Illuminar\Tests\StorageDrivers;
 
 use Adobrovolsky97\Illuminar\StorageDrivers\FilesystemStorageDriver;
-use Adobrovolsky97\Illuminar\Tests\TestCase;
-use Illuminate\Contracts\Filesystem\FileNotFoundException;
+use Adobrovolsky97\Illuminar\StorageDrivers\StorageDriverInterface;
 use Illuminate\Filesystem\Filesystem;
-use PHPUnit\Framework\MockObject\Exception;
 
 /**
  * Class FilesystemStorageDriverTest
  */
-class FilesystemStorageDriverTest extends TestCase
+class FilesystemStorageDriverTest extends StorageDriverTestCase
 {
-    /**
-     * @var Filesystem
-     */
-    private $filesystem;
-
-    /**
-     * @var FilesystemStorageDriver
-     */
-    private FilesystemStorageDriver $storageDriver;
-
-    /**
-     * @throws Exception
-     */
-    public function setUp(): void
-   {
-       parent::setUp();
-
-       $this->filesystem = $this->createMock(Filesystem::class);
-       $this->storageDriver = new FilesystemStorageDriver($this->filesystem);
-   }
-
-    /**
-     * New uuid entry should append data
-     *
-     * @return void
-     */
-    public function testSaveEntityWithNewUuidShouldAppendData(): void
+    protected function makeDriver(): StorageDriverInterface
     {
-        $this->filesystem->method('exists')->willReturn(true);
-        $this->filesystem->method('get')->willReturn(json_encode([['uuid' => 'existing-uuid', 'key' => 'value']]));
-        $this->filesystem->method('isDirectory')->willReturn(true);
-
-        $this->filesystem->expects($this->once())->method('put');
-
-        $this->storageDriver->saveEntry(['uuid' => 'new-uuid', 'key' => 'value']);
+        return new FilesystemStorageDriver(new Filesystem());
     }
 
-    /**
-     * Existing uuid should update data
-     *
-     * @return void
-     */
-    public function testSaveEntryUpdatesDataWhenUuidFound(): void
+    public function testCorruptedLinesAreSkipped(): void
     {
-        $this->filesystem->method('exists')->willReturn(true);
-        $this->filesystem->method('get')->willReturn(json_encode([['uuid' => 'existing-uuid', 'data' => 'existing-data']]));
-        $this->filesystem->method('isDirectory')->willReturn(true);
+        $this->driver->saveEntry(['uuid' => '1', 'type' => 'dump']);
+        file_put_contents($this->directory . '/illuminar.jsonl', "{broken json\n", FILE_APPEND);
+        $this->driver->saveEntry(['uuid' => '2', 'type' => 'dump']);
 
-        $this->filesystem->expects($this->once())->method('put');
-
-        $this->storageDriver->saveEntry(['uuid' => 'existing-uuid', 'data' => 'updated-data']);
+        $this->assertCount(2, $this->driver->getData());
     }
 
-    /**
-     * Empty array should be returned when file does not exist
-     *
-     * @return void
-     * @throws FileNotFoundException
-     */
-    public function testGetDataReturnsEmptyArrayWhenFileDoesNotExist(): void
+    public function testCompactionKeepsLatestEntries(): void
     {
-        $this->filesystem->method('exists')->willReturn(false);
+        config(['illuminar.storage.max_file_size' => 0.01]); // ~10KB
 
-        $data = $this->storageDriver->getData();
+        foreach (range(1, 100) as $i) {
+            $this->driver->saveEntry(['uuid' => (string)$i, 'type' => 'dump', 'data' => str_repeat('x', 500)]);
+        }
 
-        $this->assertEquals([], $data);
-    }
-
-    /**
-     *
-     * @return void
-     * @throws FileNotFoundException
-     */
-    public function testGetDataReturnsDecodedJsonWhenFileExists(): void
-    {
-        $this->filesystem->method('exists')->willReturn(true);
-        $this->filesystem->method('get')->willReturn(json_encode([['uuid' => 'existing-uuid', 'data' => 'existing-data']]));
-        $this->filesystem->method('isDirectory')->willReturn(true);
-
-        $data = $this->storageDriver->getData();
-
-        $this->assertEquals([['uuid' => 'existing-uuid', 'data' => 'existing-data']], $data);
-    }
-
-    /**
-     * @return void
-     */
-    public function testClearDeletesFileWhenItExists(): void
-    {
-        $this->filesystem->method('exists')->willReturn(true);
-        $this->filesystem->expects($this->once())->method('delete');
-        $this->filesystem->method('isDirectory')->willReturn(true);
-
-        $this->storageDriver->clear();
-    }
-
-    /**
-     * @return void
-     */
-    public function testClearDoesNothingWhenFileDoesNotExist(): void
-    {
-        $this->filesystem->method('exists')->willReturn(false);
-        $this->filesystem->expects($this->never())->method('delete');
-
-        $this->storageDriver->clear();
+        $this->assertLessThanOrEqual(10 * 1024 * 1.1, filesize($this->directory . '/illuminar.jsonl'));
+        $this->assertSame('100', $this->driver->getData()[0]['uuid']);
     }
 }

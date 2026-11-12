@@ -19,9 +19,10 @@ class ModelPayloadTest extends TestCase
      */
     public function testToArray(): void
     {
-        $model = $this->createMock(Model::class);
+        $model = $this->createStub(Model::class);
         $model->method('getKey')->willReturn(1);
-        $model->method('toArray')->willReturn(['id' => 1, 'name' => 'Test']);
+        $model->method('getAttributes')->willReturn(['id' => 1, 'name' => 'Test', 'password' => 'hash']);
+        $model->method('getHidden')->willReturn(['password']);
         $model->method('getChanges')->willReturn(['name' => 'Test']);
         $model->method('getOriginal')->willReturn('Original');
 
@@ -44,7 +45,7 @@ class ModelPayloadTest extends TestCase
         $this->assertEquals('created', $result['action']);
         $this->assertEquals(get_class($model), $result['model_class']);
         $this->assertEquals(1, $result['primary_key']);
-        $this->assertEquals(['id' => 1, 'name' => 'Test'], $result['new_attributes']);
+        $this->assertEquals(['id' => 1, 'name' => 'Test', 'password' => '********'], $result['new_attributes']);
         $this->assertEquals([], $result['original_attributes']);
         $this->assertNotNull($result['uuid']);
         $this->assertNotNull($result['caller']);

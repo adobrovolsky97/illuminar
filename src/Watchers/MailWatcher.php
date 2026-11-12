@@ -5,10 +5,10 @@ namespace Adobrovolsky97\Illuminar\Watchers;
 use Adobrovolsky97\Illuminar\Payloads\MailablePreviewPayload;
 use Adobrovolsky97\Illuminar\Payloads\MailPayload;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\Event;
-use Throwable;
 
 /**
  * Class MailWatcher
@@ -16,51 +16,57 @@ use Throwable;
 class MailWatcher extends Watcher
 {
     /**
-     * @return string
+     * Mailable::buildViewDataUsing() is global, it must be wrapped only once per process
      */
+    private static bool $viewDataCallbackRegistered = false;
+
     public static function getName(): string
     {
         return 'mail';
     }
 
-    /**
-     * @return void
-     */
     protected function initialize(): void
     {
-        $existingCallback = Mailable::$viewDataCallback;
-
-        Mailable::buildViewDataUsing(function ($mailable) use ($existingCallback) {
-            $existingData = $existingCallback ? call_user_func($existingCallback, $mailable) : [];
-
-            // Adding mailable data to mail payload
-            return array_merge($existingData, [
-                '__illuminar_mailable' => get_class($mailable),
-                '__illuminar_queued'   => in_array(ShouldQueue::class, class_implements($mailable)),
-            ]);
-        });
+        $this->registerViewDataCallback();
 
         Event::listen(MessageSent::class, function (MessageSent $event) {
             if (!$this->enabled) {
                 return;
             }
 
-            $this->storageDriver->saveEntry((new MailPayload($event))->toArray());
+            $this->record(function () use ($event) {
+                return new MailPayload($event);
+            });
         });
     }
 
     /**
-     * Show mailable content
-     *
-     * @param Mailable $mailable
-     * @return void
+     * Store mailable / mail message preview
      */
-    public function mailable(Mailable $mailable): void
+    public function mailable(Renderable $mailable): void
     {
-        try {
-            $this->storageDriver->saveEntry((new MailablePreviewPayload($mailable))->toArray());
-        }catch (Throwable $exception){
+        $this->record(function () use ($mailable) {
+            return new MailablePreviewPayload($mailable);
+        });
+    }
 
+    private function registerViewDataCallback(): void
+    {
+        if (self::$viewDataCallbackRegistered || !property_exists(Mailable::class, 'viewDataCallback')) {
+            return;
         }
+
+        self::$viewDataCallbackRegistered = true;
+
+        $existingCallback = Mailable::$viewDataCallback;
+
+        Mailable::buildViewDataUsing(function ($mailable) use ($existingCallback) {
+            $existingData = $existingCallback ? (array)call_user_func($existingCallback, $mailable) : [];
+
+            return array_merge($existingData, [
+                '__illuminar_mailable' => get_class($mailable),
+                '__illuminar_queued'   => $mailable instanceof ShouldQueue,
+            ]);
+        });
     }
 }

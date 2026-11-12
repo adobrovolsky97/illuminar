@@ -3,44 +3,33 @@
 namespace Adobrovolsky97\Illuminar\StorageDrivers;
 
 /**
- * Class FakeStorageDriver
+ * In-memory storage used in tests. Entries are returned in insertion order (oldest first).
  */
 class FakeStorageDriver implements StorageDriverInterface
 {
-    /**
-     * @var array
-     */
     private static array $data = [];
 
-    /**
-     * @return void
-     */
     public function clear(): void
     {
         self::$data = [];
     }
 
-    /**
-     * @param array $data
-     * @return void
-     */
     public function saveEntry(array $data): void
     {
-        $index = array_search($data['uuid'], array_column(self::$data, 'uuid'));
-
-        if ($index === false) {
-            self::$data[] = $data;
+        if (!isset($data['uuid'])) {
             return;
         }
 
-        self::$data[$index] = $data;
+        $uuid = $data['uuid'];
+
+        // Same behaviour as the real driver: partial updates are merged into the entry
+        self::$data[$uuid] = isset(self::$data[$uuid]) ? array_merge(self::$data[$uuid], $data) : $data;
     }
 
-    /**
-     * @return array
-     */
     public function getData(): array
     {
-        return self::$data;
+        return array_values(array_filter(self::$data, function (array $entry) {
+            return isset($entry['type']);
+        }));
     }
 }

@@ -10,24 +10,15 @@ use Illuminate\Database\Eloquent\Model;
  */
 class ModelPayload extends Payload
 {
+    private const HIDDEN_VALUE = '********';
+
     /**
-     * Model event name
-     *
-     * @var string
+     * Model event name, e.g. "eloquent.updated: App\Models\User"
      */
     private string $event;
 
-    /**
-     * Model event payload
-     *
-     * @var array
-     */
     private array $payload;
 
-    /**
-     * @param string $event
-     * @param array $payload
-     */
     public function __construct(string $event, array $payload)
     {
         $this->event = $event;
@@ -36,24 +27,27 @@ class ModelPayload extends Payload
         parent::__construct();
     }
 
-    /**
-     * @return array
-     */
+    public static function actionFromEventName(string $event): string
+    {
+        $name = trim(explode(':', $event, 2)[0]);
+
+        return str_starts_with($name, 'eloquent.') ? substr($name, strlen('eloquent.')) : '';
+    }
+
     public function toArray(): array
     {
-        $model = $this->payload['model'] ?? $this->payload[0];
+        $model = $this->payload['model'] ?? $this->payload[0] ?? null;
 
         if (!$model instanceof Model) {
             return [];
         }
 
         $primaryKey = $model->getKey();
-        $action = $this->getAction();
-
+        $action = self::actionFromEventName($this->event);
 
         switch ($action) {
             case 'created':
-                $newAttributes = $model->toArray();
+                $newAttributes = $this->hideAttributes($model, $model->getAttributes());
                 $originalAttributes = [];
                 break;
             case 'deleted':
@@ -62,49 +56,42 @@ class ModelPayload extends Payload
                 $originalAttributes = [];
                 break;
             default:
-                $newAttributes = $model->getChanges();
-                $originalAttributes = $this->getOriginalValuesForChangedAttributes($model);
+                $changes = $model->getChanges() ?: $model->getDirty();
+                $newAttributes = $this->hideAttributes($model, $changes);
+                $originalAttributes = $this->hideAttributes($model, $this->getOriginalValues($model, array_keys($changes)));
         }
 
-        return [
-            'uuid'                => $this->getUuid(),
-            'type'                => ModelWatcher::getName(),
+        return array_merge($this->baseFields(ModelWatcher::getName()), [
             'action'              => $action,
             'model_class'         => get_class($model),
             'primary_key'         => is_array($primaryKey) ? '[' . implode(', ', $primaryKey) . ']' : $primaryKey,
             'new_attributes'      => $newAttributes,
             'original_attributes' => $originalAttributes,
-            'caller'              => $this->getCaller(),
-            'time'                => now()->format('H:i:s'),
-        ];
+        ]);
     }
 
-    /**
-     * Get original values for changed attributes
-     *
-     * @param Model $model
-     * @return array
-     */
-    private function getOriginalValuesForChangedAttributes(Model $model): array
+    private function getOriginalValues(Model $model, array $keys): array
     {
         $original = [];
 
-        foreach ($model->getChanges() as $key => $value) {
-            $original[$key] = $model->getOriginal($key);
+        foreach ($keys as $key) {
+            $original[$key] = $model->getRawOriginal($key);
         }
 
         return $original;
     }
 
     /**
-     * Get action name
-     *
-     * @return string
+     * Mask $hidden attributes (passwords, tokens etc.)
      */
-    private function getAction(): string
+    private function hideAttributes(Model $model, array $attributes): array
     {
-        preg_match('/\.(.*):/', $this->event, $matches);
+        foreach ($model->getHidden() as $hidden) {
+            if (array_key_exists($hidden, $attributes)) {
+                $attributes[$hidden] = self::HIDDEN_VALUE;
+            }
+        }
 
-        return $matches[1] ?? '';
+        return $attributes;
     }
 }

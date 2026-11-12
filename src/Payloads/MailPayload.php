@@ -11,19 +11,10 @@ use Symfony\Component\Mime\Address;
  */
 class MailPayload extends Payload
 {
-    /**
-     * @var MessageSent
-     */
     private MessageSent $event;
 
-    /**
-     * @var array
-     */
-    protected array $callerPathsToRemove = ['vendor'];
+    protected array $callerPathsToRemove = ['vendor/'];
 
-    /**
-     * @param MessageSent $event
-     */
     public function __construct(MessageSent $event)
     {
         $this->event = $event;
@@ -31,57 +22,45 @@ class MailPayload extends Payload
         parent::__construct();
     }
 
-    /**
-     * @return array
-     */
     public function toArray(): array
     {
-        $mailable = $this->getMailable($this->event);
+        $message = $this->event->message;
 
-        return [
-            'uuid'           => $this->getUuid(),
-            'type'           => MailWatcher::getName(),
-            'mailable_class' => $mailable,
-            'subject'        => $this->event->message->getSubject(),
-            'queued'         => $this->getQueuedStatus($this->event),
-            'from'           => $this->formatAddresses($this->event->message->getFrom()),
-            'to'             => $this->formatAddresses($this->event->message->getTo()),
-            'cc'             => $this->formatAddresses($this->event->message->getCc()),
-            'bcc'            => $this->formatAddresses($this->event->message->getBcc()),
-            'html'           => $this->event->message->getHtmlBody() ?? $this->event->message->getTextBody() ?? '',
-            'time'           => now()->format('H:i:s'),
-            'caller'         => $this->getCaller(),
-        ];
+        return array_merge($this->baseFields(MailWatcher::getName()), [
+            'mailable_class' => $this->getMailable(),
+            'subject'        => $message->getSubject(),
+            'queued'         => $this->getQueuedStatus(),
+            'from'           => $this->formatAddresses($message->getFrom()),
+            'to'             => $this->formatAddresses($message->getTo()),
+            'cc'             => $this->formatAddresses($message->getCc()),
+            'bcc'            => $this->formatAddresses($message->getBcc()),
+            'html'           => $this->body($message->getHtmlBody())
+                ?? nl2br(e((string)$this->body($message->getTextBody()))),
+        ]);
     }
 
     /**
-     * Get mailable
-     *
-     * @param $event
-     * @return string|null
+     * @param string|resource|null $body
      */
-    private function getMailable($event): ?string
+    private function body($body): ?string
     {
-        return $event->data['__laravel_notification'] ?? $event->data['__illuminar_mailable'] ?? null;
+        if (is_resource($body)) {
+            return (string)stream_get_contents($body);
+        }
+
+        return $body === null ? null : (string)$body;
     }
 
-    /**
-     *  Get queued status
-     *
-     * @param $event
-     * @return bool
-     */
-    private function getQueuedStatus($event): bool
+    private function getMailable(): ?string
     {
-        return $event->data['__laravel_notification_queued'] ?? $event->data['__illuminar_queued'] ?? false;
+        return $this->event->data['__laravel_notification'] ?? $this->event->data['__illuminar_mailable'] ?? null;
     }
 
-    /**
-     * Format addresses
-     *
-     * @param array|null $addresses
-     * @return array|null
-     */
+    private function getQueuedStatus(): bool
+    {
+        return (bool)($this->event->data['__laravel_notification_queued'] ?? $this->event->data['__illuminar_queued'] ?? false);
+    }
+
     private function formatAddresses(?array $addresses): ?array
     {
         if (is_null($addresses)) {
@@ -89,10 +68,11 @@ class MailPayload extends Payload
         }
 
         return collect($addresses)
-            ->flatMap(function ($address, $key) {
+            ->mapWithKeys(function ($address, $key) {
                 if ($address instanceof Address) {
                     return [$address->getAddress() => $address->getName()];
                 }
+
                 return [$key => $address];
             })
             ->all();

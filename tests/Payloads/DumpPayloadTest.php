@@ -11,73 +11,46 @@ use stdClass;
  */
 class DumpPayloadTest extends TestCase
 {
-    /**
-     * Testing dump of primitive arguments
-     *
-     * @return void
-     */
     public function testToArrayWithPrimitiveArguments(): void
     {
-        $payload = new DumpPayload('test', 123, true);
-        $result = $payload->toArray();
+        $result = (new DumpPayload('test', 123, true, null, false))->toArray();
 
-        $this->assertIsArray($result);
-        $this->assertCount(3, $result['data']);
-        $this->assertEquals('string', $result['data'][0]['type']);
-        $this->assertEquals('integer', $result['data'][1]['type']);
-        $this->assertEquals('boolean', $result['data'][2]['type']);
+        $this->assertCount(5, $result['data']);
+        $this->assertSame(['type' => 'string', 'data' => 'test'], $result['data'][0]);
+        $this->assertSame(['type' => 'integer', 'data' => 123], $result['data'][1]);
+        $this->assertSame(['type' => 'boolean', 'data' => true], $result['data'][2]);
+        $this->assertSame(['type' => 'NULL', 'data' => null], $result['data'][3]);
+        // falsy values must not be lost
+        $this->assertSame(['type' => 'boolean', 'data' => false], $result['data'][4]);
     }
 
-    /**
-     * Testing object argument
-     *
-     * @return void
-     */
-    public function testDumpObject(): void
+    public function testObjectsAreRenderedToHtmlAtCaptureTime(): void
     {
         $object = new stdClass();
-        $payload = new DumpPayload($object);
-        $result = $payload->toArray();
+        $object->name = 'Illuminar';
 
-        $this->assertIsArray($result);
-        $this->assertCount(1, $result['data']);
-        $this->assertEquals('object', $result['data'][0]['type']);
+        $result = (new DumpPayload($object, []))->toArray();
+
+        $this->assertSame('html', $result['data'][0]['type']);
+        $this->assertStringContainsString('Illuminar', $result['data'][0]['data']);
+        // empty arrays must not be lost
+        $this->assertSame('html', $result['data'][1]['type']);
     }
 
-    /**
-     * Testing array with closure argument
-     *
-     * @return void
-     */
     public function testDumpClosure(): void
     {
-        $closure = function () {
+        $result = (new DumpPayload(function () {
             return 'test';
-        };
-        $payload = new DumpPayload($closure);
-        $result = $payload->toArray();
+        }))->toArray();
 
-        $this->assertIsArray($result);
-        $this->assertCount(1, $result['data']);
-        $this->assertEquals('closure', $result['data'][0]['type']);
+        $this->assertSame('html', $result['data'][0]['type']);
+        $this->assertStringContainsString('Closure', $result['data'][0]['data']);
     }
 
-    /**
-     * Testing array with closure argument
-     *
-     * @return void
-     */
-    public function testDumpArrayOfClosures(): void
+    public function testFullTimestampIsStored(): void
     {
-        $closure = function () {
-            return 'test';
-        };
-        $payload = new DumpPayload([$closure, $closure]);
-        $result = $payload->toArray();
+        $result = (new DumpPayload('test'))->toArray();
 
-        $this->assertIsArray($result);
-        $this->assertCount(2, $result['data'][0]);
-        $this->assertEquals('closure', $result['data'][0][0]['type']);
-        $this->assertEquals('closure', $result['data'][0][1]['type']);
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}[+-]\d{2}:\d{2}$/', $result['time']);
     }
 }
